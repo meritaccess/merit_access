@@ -15,8 +15,9 @@ class ConfigMode(BaseMode):
         self.mode_name: str = "ConfigMode"
         self.sys_led.set_status("blue", "on")
         self.easy_add = bool(int(self.db_controller.get_val("ConfigDU", "easy_add")))
-        self.easy_remove = bool(int(self.db_controller.get_val("ConfigDU", "easy_remove")))
-        
+        self.easy_remove = bool(
+            int(self.db_controller.get_val("ConfigDU", "easy_remove"))
+        )
 
     def _wifi_setup(self) -> None:
         self.wifi_controller.turn_on()
@@ -37,7 +38,7 @@ class ConfigMode(BaseMode):
                         self.sys_led.set_status("red", "on")
                         time.sleep(2)
                         self.sys_led.set_status("blue", "on")
-            
+
             # if card not in the database - add it and grant access
             else:
                 if self.easy_add:
@@ -70,5 +71,5 @@ class ConfigMode(BaseMode):
         except Exception as e:
             self.logger.log(1, str(e))
         finally:
-            self.wifi_controller.turn_off()
+            # self.wifi_controller.turn_off()
             self.sys_led.set_status("black", "off")

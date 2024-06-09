@@ -3,11 +3,11 @@ from netaddr import IPNetwork
 
 
 class NetworkController:
-    def __init__(self, interface="eth0"):
+    def __init__(self, interface="eth0") -> None:
         self.interface = interface
         self.connection = self._get_connection_name()
 
-    def _get_connection_name(self):
+    def _get_connection_name(self) -> str:
         """Retrieves the connection name for the specified interface."""
         try:
             result = subprocess.run(
@@ -27,7 +27,11 @@ class NetworkController:
             print(f"Failed to retrieve connection names: {e}")
             return ""
 
-    def set_static_ip(self, ip, subnet_mask, gateway, dns):
+    def reset_connection(self) -> None:
+        subprocess.run(["sudo", "nmcli", "con", "down", self.connection], check=True)
+        subprocess.run(["sudo", "nmcli", "con", "up", self.connection], check=True)
+
+    def set_static_ip(self, ip, subnet_mask, gateway, dns) -> None:
         """Sets a static IP address with the given subnet mask, gateway, and DNS."""
         # Convert subnet mask to CIDR notation
         cidr_notation = IPNetwork(f"0.0.0.0/{subnet_mask}").prefixlen
@@ -73,19 +77,27 @@ class NetworkController:
                 ],
                 check=True,
             )
-            subprocess.run(["sudo", "nmcli", "con", "up", self.connection], check=True)
+            self.reset_connection()
             print(f"Static IP {ip} set successfully on {self.connection}.")
         except subprocess.CalledProcessError as e:
             print(f"Failed to set static IP: {e}")
 
-    def set_dhcp(self):
+    def set_dhcp(self) -> None:
         """Enables DHCP for the specified interface."""
         try:
             subprocess.run(
                 ["sudo", "nmcli", "con", "mod", self.connection, "ipv4.method", "auto"],
                 check=True,
             )
-            subprocess.run(["sudo", "nmcli", "con", "up", self.connection], check=True)
+            subprocess.run(
+                ["sudo", "nmcli", "con", "mod", self.connection, "ipv4.gateway", ""],
+                check=True,
+            )
+            subprocess.run(
+                ["sudo", "nmcli", "con", "mod", self.connection, "ipv4.address", ""],
+                check=True,
+            )
+            self.reset_connection()
             print(f"DHCP enabled successfully on {self.connection}.")
         except subprocess.CalledProcessError as e:
             print(f"Failed to enable DHCP: {e}")

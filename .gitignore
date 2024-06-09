@@ -163,5 +163,3 @@ cython_debug/
 # custom
 logs
 logs/
-.vscode/
-.vscode

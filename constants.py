@@ -1,3 +1,5 @@
+import os
+
 # PINOUT
 SYS_LED_RED = 0
 SYS_LED_GREEN = 1
@@ -27,6 +29,6 @@ DB_NAME = "MeritAccessLocal"
 # PATHS
 LOG_DIR = "logs/"
 READER_PATH = "/dev/wie"
-
+APP_PATH = os.path.dirname(os.path.abspath(__file__))
 # SETTINGS
 LOG_FILE_SIZE = 10

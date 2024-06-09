@@ -1,7 +1,7 @@
 from datetime import datetime as dt
 import os
 from typing import Any
-from constants import LOG_DIR, LOG_FILE_SIZE
+from constants import LOG_DIR, LOG_FILE_SIZE, APP_PATH
 
 
 class Logger:
@@ -15,9 +15,11 @@ class Logger:
         log_dir: str = LOG_DIR,
         max_size_mb: int = LOG_FILE_SIZE,
     ) -> None:
-        self._log_dir = log_dir
-        self._log_file1: str = log_dir + "logfile" + "1" + ".log"
-        self._log_file2: str = log_dir + "logfile" + "2" + ".log"
+        self._log_dir = os.path.join(APP_PATH, log_dir)
+        self._log_file1 = os.path.join(self._log_dir, "logfile1.log")
+        self._log_file2 = os.path.join(self._log_dir, "logfile2.log")
+        print(self._log_file1)
+        print(self._log_file2)
         self._max_size: int = max_size_mb * 1024 * 1024
         self._min_severity: int = min_severity
 
@@ -70,5 +72,5 @@ class Logger:
             return self._log_file2
 
     def _check_dir(self):
-        if not os.path.exists(LOG_DIR):
+        if not os.path.exists(self._log_dir):
             os.mkdir(self._log_dir)
