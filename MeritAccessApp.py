@@ -15,6 +15,7 @@ from constants import (
     CONFIG_BTN,
     OPEN1,
     OPEN2,
+    APP_PATH,
 )
 from Logger.Logger import Logger
 from Logger.LoggerDB import LoggerDB
@@ -71,13 +72,13 @@ class MeritAccessApp:
         self._check_version()
 
     def _check_version(self) -> None:
-        file = "version.txt"
+        version_db = self.db_controller.get_val("running", "Version")
+        file = os.path.join(APP_PATH, "version.txt")
         if os.path.exists(file):
             with open(file, "r") as f:
                 version = f.read().strip()
-        version_db = self.db_controller.get_val("running", "Version")
-        if version != version_db:
-            self.db_controller.set_val("running", "Version", version)
+            if version != version_db:
+                self.db_controller.set_val("running", "Version", version)
 
     def run(self) -> None:
         """
