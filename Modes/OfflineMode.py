@@ -55,6 +55,7 @@ class OfflineMode(BaseMode):
         Performs initial setup tasks, such as logging start information and updating database values.
         """
         self.logger.log(3, "Starting app...")
+        self.logger.log(3, self.mode_name)
         self.logger.log(3, "Reading DU config from DB...")
         self.db_controller.set_val("running", "MyID", self.mac)
         self.logger.log(
@@ -72,7 +73,9 @@ class OfflineMode(BaseMode):
         """
         Checks if open buttons are pressed and opens the corresponding doors.
         """
-        self._open_buttons_thread = threading.Thread(target=self._thread_open_btns, daemon=True, name="open_btns")
+        self._open_buttons_thread = threading.Thread(
+            target=self._thread_open_btns, daemon=True, name="open_btns"
+        )
         self._open_buttons_thread.start()
 
     def _thread_open_btns(self) -> None:
@@ -88,7 +91,6 @@ class OfflineMode(BaseMode):
         self._stop_event.set()
         if self._open_buttons_thread:
             self._open_buttons_thread.join()
-
 
     def run(self) -> int:
         """The main loop of the mode."""
@@ -114,5 +116,4 @@ class OfflineMode(BaseMode):
                 self.door_unit1.openning or self.door_unit2.openning
             ):  # wait for the reader to finish opening
                 time.sleep(1)
-            self.sys_led.set_status("black", "off")
             self._stop()

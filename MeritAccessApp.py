@@ -1,6 +1,6 @@
 import RPi.GPIO as GPIO
 import time
-import subprocess
+import os
 from LedInfo.LedInfo import LedInfo
 from Reader.ReaderWiegand import ReaderWiegand
 from constants import (
@@ -17,6 +17,7 @@ from constants import (
     OPEN2,
 )
 from Logger.Logger import Logger
+from Logger.LoggerDB import LoggerDB
 from DatabaseController.DatabaseController import DatabaseController
 from DoorUnit.DoorUnit import DoorUnit
 from Button.Button import Button
@@ -36,18 +37,10 @@ class MeritAccessApp:
 
     def __init__(self) -> None:
         GPIO.setmode(GPIO.BCM)
-        # reader script
-        self.reader_script_path = "/home/bantj/wiegand_driver/read.sh"
-        subprocess.Popen(
-            [self.reader_script_path],
-            shell=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
 
         # software objects
-        self.logger: Logger = Logger()
         self.db_controller: DatabaseController = DatabaseController()
+        self.logger: LoggerDB = LoggerDB(db_controller=self.db_controller)
         self.wifi_controller: WifiController = WifiController()
         self.network_controller: NetworkController = NetworkController()
 
@@ -75,6 +68,16 @@ class MeritAccessApp:
         self.default_mode: int = int(self.db_controller.get_val("ConfigDU", "mode"))
         # 0 - cloud, 1 - offline, 2 - config
         self.mode: int = self.default_mode
+        self._check_version()
+
+    def _check_version(self) -> None:
+        file = "version.txt"
+        if os.path.exists(file):
+            with open(file, "r") as f:
+                version = f.read().strip()
+        version_db = self.db_controller.get_val("running", "Version")
+        if version != version_db:
+            self.db_controller.set_val("running", "Version", version)
 
     def run(self) -> None:
         """

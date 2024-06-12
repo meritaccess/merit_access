@@ -18,8 +18,6 @@ class Logger:
         self._log_dir = os.path.join(APP_PATH, log_dir)
         self._log_file1 = os.path.join(self._log_dir, "logfile1.log")
         self._log_file2 = os.path.join(self._log_dir, "logfile2.log")
-        print(self._log_file1)
-        print(self._log_file2)
         self._max_size: int = max_size_mb * 1024 * 1024
         self._min_severity: int = min_severity
 

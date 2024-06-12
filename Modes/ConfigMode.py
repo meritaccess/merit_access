@@ -13,7 +13,7 @@ class ConfigMode(BaseMode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mode_name: str = "ConfigMode"
-        self.sys_led.set_status("blue", "on")
+        self.sys_led.set_status("blue", "blink")
         self.easy_add = bool(int(self.db_controller.get_val("ConfigDU", "easy_add")))
         self.easy_remove = bool(
             int(self.db_controller.get_val("ConfigDU", "easy_remove"))
@@ -71,5 +71,4 @@ class ConfigMode(BaseMode):
         except Exception as e:
             self.logger.log(1, str(e))
         finally:
-            # self.wifi_controller.turn_off()
-            self.sys_led.set_status("black", "off")
+            self.wifi_controller.turn_off()

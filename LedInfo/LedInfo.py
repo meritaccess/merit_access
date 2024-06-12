@@ -33,11 +33,11 @@ class LedInfo:
             "red": (255, 0, 0),
             "green": (0, 255, 0),
             "blue": (0, 0, 255),
-            "yellow": (255, 255, 0),
             "magenta": (255, 0, 255),
             "white": (255, 255, 255),
             "black": (0, 0, 0),
             "cyan": (0, 255, 255),
+            "yellow": (255, 100, 0),
         }
 
         # Default settings
@@ -54,6 +54,14 @@ class LedInfo:
         GPIO.setup(self._r, GPIO.OUT)
         GPIO.setup(self._g, GPIO.OUT)
         GPIO.setup(self._b, GPIO.OUT)
+
+        self.pwm_r = GPIO.PWM(self._r, 1000)
+        self.pwm_g = GPIO.PWM(self._g, 1000)
+        self.pwm_b = GPIO.PWM(self._b, 1000)
+
+        self.pwm_r.start(0)
+        self.pwm_g.start(0)
+        self.pwm_b.start(0)
 
     def set_status(self, color, style: str) -> None:
         """
@@ -92,9 +100,9 @@ class LedInfo:
         """
         Sets the LED's color using RGB values.
         """
-        GPIO.output(self._r, GPIO.HIGH if rgb[0] > 0 else GPIO.LOW)
-        GPIO.output(self._g, GPIO.HIGH if rgb[1] > 0 else GPIO.LOW)
-        GPIO.output(self._b, GPIO.HIGH if rgb[2] > 0 else GPIO.LOW)
+        self.pwm_r.ChangeDutyCycle(rgb[0] / 255 * 100)
+        self.pwm_g.ChangeDutyCycle(rgb[1] / 255 * 100)
+        self.pwm_b.ChangeDutyCycle(rgb[2] / 255 * 100)
 
     def _set_style(self, style: str) -> None:
         """
@@ -123,6 +131,9 @@ class LedInfo:
         """
         Stops the LED control thread and cleans up GPIO.
         """
+        self.pwm_r.stop()
+        self.pwm_g.stop()
+        self.pwm_b.stop()
         self._stop_event.set()
         if self._style_thread:
             self._style_thread.join()
@@ -152,7 +163,7 @@ class LedInfo:
         Converts a hexadecimal color value to an RGB tuple.
         """
         rgb = []
-        for i in range(3):
+        for _ in range(3):
             rgb.insert(0, (color & 0xFF))
             color >>= 8
         return tuple(rgb)

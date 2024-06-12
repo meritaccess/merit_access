@@ -169,3 +169,22 @@ class DatabaseController:
         except Exception as e:
             self._db_logger.log(1, str(e))
             return False
+
+    def add_log(self, severity: int, content: Any) -> bool:
+        """
+        Adds a log entry to the database.
+        """
+        mydb, cur = self._connect()
+        try:
+            arg = (severity, content)
+            cur.execute(
+                """INSERT INTO `logs` (`severity`, `message`) VALUES (%s, %s);""",
+                arg,
+            )
+            mydb.commit()
+            cur.close()
+            mydb.close()
+            return True
+        except Exception as e:
+            self._db_logger.log(1, str(e))
+            return False
