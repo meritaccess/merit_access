@@ -17,15 +17,16 @@ class CloudMode(OfflineMode):
 
     def __init__(self, *args, network_controller: NetworkController, **kwargs):
         super().__init__(*args, **kwargs)
-        self.network_controller = network_controller
-        self.update = False
+        self.network_controller: NetworkController = network_controller
+        self.update: bool = False
         self.ws_controller = WebServicesController(
             mac=self.mac, db_controller=self.db_controller
         )
-        self.ws_controller.load_all_cards_from_ws()
         self.sys_led.set_status("yellow", "on")
-        self.mode_name = "CloudMode"
-        self.ws_ready = self.ws_controller.check_connection()
+        self.mode_name: str = "CloudMode"
+
+        self.ws_controller.load_all_cards_from_ws()
+        self.ws_ready: bool = self.ws_controller.check_connection()
         print(f"WS Ready: {self.ws_ready}")
         self._check_ws(600)
 

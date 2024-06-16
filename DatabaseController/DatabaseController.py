@@ -188,3 +188,9 @@ class DatabaseController:
         except Exception as e:
             self._db_logger.log(1, str(e))
             return False
+
+    def __str__(self) -> str:
+        return "Database Controller"
+
+    def __repr__(self) -> str:
+        return "Database Controller"

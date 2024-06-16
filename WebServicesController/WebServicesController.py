@@ -37,9 +37,7 @@ class WebServicesController:
             xml = ET.fromstring(result)
             args = []
             for child in xml.findall("card"):
-                mkarta = " ".join(
-                    child.get("Karta").split()
-                )
+                mkarta = " ".join(child.get("Karta").split())
                 arg = (
                     mkarta,
                     child.get("Ctecka"),
@@ -73,7 +71,9 @@ class WebServicesController:
         if not self.loading:
             self.loading = True
             t = threading.Thread(
-                target=self._thread_load_all_cards_from_ws, daemon=True, name="load_all_cards_from_ws"
+                target=self._thread_load_all_cards_from_ws,
+                daemon=True,
+                name="load_all_cards_from_ws",
             )
             t.start()
 
@@ -141,3 +141,9 @@ class WebServicesController:
         except Exception as e:
             self.ws_logger.log(1, str(e))
             return False
+
+    def __str__(self) -> str:
+        return "Web Services Controller"
+
+    def __repr__(self) -> str:
+        return "Web Services Controller"

@@ -38,3 +38,9 @@ class LoggerDB(Logger):
                 except Exception as e:
                     print(f"Can not write to {file} ", str(e))
                     return False
+
+    def __str__(self) -> str:
+        return "LoggerDB"
+
+    def __repr__(self) -> str:
+        return "LoggerDB"

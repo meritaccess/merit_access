@@ -72,3 +72,9 @@ class Logger:
     def _check_dir(self):
         if not os.path.exists(self._log_dir):
             os.mkdir(self._log_dir)
+
+    def __str__(self) -> str:
+        return "Logger"
+
+    def __repr__(self) -> str:
+        return "Logger"

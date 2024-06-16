@@ -1,8 +1,7 @@
 import RPi.GPIO as GPIO
 import time
 import os
-from LedInfo.LedInfo import LedInfo
-from Reader.ReaderWiegand import ReaderWiegand
+
 from constants import (
     R1_BEEP,
     R1_RED_LED,
@@ -17,16 +16,19 @@ from constants import (
     OPEN2,
     APP_PATH,
 )
-from Logger.Logger import Logger
+from LedInfo.LedInfo import LedInfo
+from Reader.ReaderWiegand import ReaderWiegand
 from Logger.LoggerDB import LoggerDB
 from DatabaseController.DatabaseController import DatabaseController
 from DoorUnit.DoorUnit import DoorUnit
 from Button.Button import Button
-from Modes.ConfigMode import ConfigMode
 from Modes.OfflineMode import OfflineMode
 from Modes.CloudMode import CloudMode
 from WifiController.WifiController import WifiController
 from NetworkController.NetworkController import NetworkController
+from Modes.ConfigModeOffline import ConfigModeOffline
+from Modes.ConfigModeCloud import ConfigModeCloud
+from Modes.ConfigModeConnect import ConfigModeConnect
 
 
 class MeritAccessApp:
@@ -61,14 +63,15 @@ class MeritAccessApp:
         )
         self.door_unit1: DoorUnit = DoorUnit("DU1", reader=self.r1, relay=RELAY1)
         self.door_unit2: DoorUnit = DoorUnit("DU2", reader=self.r2, relay=RELAY2)
-        self.open_btn1: Button = Button(pin=OPEN1)
-        self.open_btn2: Button = Button(pin=OPEN2)
-        self.config_btn: Button = Button(pin=CONFIG_BTN)
+        self.open_btn1: Button = Button(pin=OPEN1, btn_id="OpenBtn1")
+        self.open_btn2: Button = Button(pin=OPEN2, btn_id="OpenBtn2")
+        self.config_btn: Button = Button(pin=CONFIG_BTN, btn_id="ConfigBtn")
 
         # setup
-        self.default_mode: int = int(self.db_controller.get_val("ConfigDU", "mode"))
-        # 0 - cloud, 1 - offline, 2 - config
-        self.mode: int = self.default_mode
+        # 0 - cloud, 1 - offline
+        self._main_mode: int = int(self.db_controller.get_val("ConfigDU", "mode"))
+        # 0 - None, 1 - ConfigModeOffline/ConfigModeOffline, 2 - ConfigModeConnect
+        self._config_mode: int = 0
         self._check_version()
 
     def _check_version(self) -> None:
@@ -87,43 +90,49 @@ class MeritAccessApp:
         """
         # select and run different modes
         try:
-            args = [
-                self.default_mode,
+            args_base = [
                 self.logger,
                 self.sys_led,
-                self.r1,
-                self.r2,
                 self.config_btn,
                 self.db_controller,
                 self.wifi_controller,
             ]
+            args_main_mode = {
+                "r1": self.r1,
+                "r2": self.r2,
+                "du1": self.door_unit1,
+                "du2": self.door_unit2,
+                "open_btn1": self.open_btn1,
+                "open_btn2": self.open_btn2,
+            }
             while True:
                 # CloudMode
-                if self.mode == 0:
-                    mode = CloudMode(
-                        *args,
-                        du1=self.door_unit1,
-                        du2=self.door_unit2,
-                        open_btn1=self.open_btn1,
-                        open_btn2=self.open_btn2,
+                if self._main_mode == 0 and self._config_mode == 0:
+                    self._config_mode = CloudMode(
+                        *args_base,
+                        **args_main_mode,
                         network_controller=self.network_controller,
-                    )
+                    ).run()
 
                 # OfflineMode
-                elif self.mode == 1:
-                    mode = OfflineMode(
-                        *args,
-                        du1=self.door_unit1,
-                        du2=self.door_unit2,
-                        open_btn1=self.open_btn1,
-                        open_btn2=self.open_btn2,
-                    )
+                elif self._main_mode == 1 and self._config_mode == 0:
+                    self._config_mode = OfflineMode(*args_base, **args_main_mode).run()
+
                 # ConfigMode
-                elif self.mode == 2:
-                    mode = ConfigMode(*args)
-                new_mode = mode.run()
-                if new_mode == 0 or new_mode == 1 or new_mode == 2:
-                    self.mode = new_mode
+                if self._config_mode == 1:
+                    if self._main_mode == 0:
+                        self._config_mode = ConfigModeCloud(
+                            *args_base,
+                        ).run()
+                    else:
+                        self._config_mode = ConfigModeOffline(
+                            *args_base,
+                            r1=self.r1,
+                            r2=self.r2,
+                        ).run()
+                if self._config_mode == 2:
+                    self._config_mode = ConfigModeConnect(*args_base).run()
+
         except KeyboardInterrupt:
             print("Ending by keyboard request")
         except Exception as e:
@@ -136,3 +145,9 @@ class MeritAccessApp:
             self.sys_led.stop()
             GPIO.cleanup()
             self.logger.log(3, "Exitting app")
+
+    def __str__(self) -> str:
+        return "MeritAccessMainApp"
+
+    def __repr__(self) -> str:
+        return "MeritAccessMainApp"

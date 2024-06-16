@@ -101,3 +101,9 @@ class NetworkController:
             print(f"DHCP enabled successfully on {self.connection}.")
         except subprocess.CalledProcessError as e:
             print(f"Failed to enable DHCP: {e}")
+
+    def __str__(self) -> str:
+        return "Network Controller"
+
+    def __repr__(self) -> str:
+        return "Network Controller"

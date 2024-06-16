@@ -1,5 +1,6 @@
 import subprocess
 
+
 class WifiController:
     """A class to control the WiFi state on a Raspberry Pi using nmcli."""
 
@@ -23,6 +24,11 @@ class WifiController:
         else:
             print(f"WiFi {self.interface} is currently disabled.")
 
+    def __str__(self) -> str:
+        return "Wifi Controller"
+
+    def __repr__(self) -> str:
+        return "Wifi Controller"
 
 
 # import subprocess

@@ -1,26 +1,25 @@
 import time
 from datetime import datetime as dt
 from Reader.ReaderWiegand import ReaderWiegand
-from Modes.BaseMode import BaseMode
+from Modes.ConfigModeCloud import ConfigModeCloud
 
 
-class ConfigMode(BaseMode):
+class ConfigModeOffline(ConfigModeCloud):
     """
     Implements the operational logic for the system when in configuration mode. In this mode,
     administrators can add or remove access permissions for cards directly through reader interactions or using the web interface.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, r1: ReaderWiegand, r2: ReaderWiegand, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mode_name: str = "ConfigMode"
+        self.r1: ReaderWiegand = r1
+        self.r2: ReaderWiegand = r2
+        self.mode_name: str = "ConfigModeOffline"
         self.sys_led.set_status("blue", "blink")
         self.easy_add = bool(int(self.db_controller.get_val("ConfigDU", "easy_add")))
         self.easy_remove = bool(
             int(self.db_controller.get_val("ConfigDU", "easy_remove"))
         )
-
-    def _wifi_setup(self) -> None:
-        self.wifi_controller.turn_on()
 
     def _manage_cards(self, reader: ReaderWiegand) -> None:
         """
@@ -37,7 +36,7 @@ class ConfigMode(BaseMode):
                     if success:
                         self.sys_led.set_status("red", "on")
                         time.sleep(2)
-                        self.sys_led.set_status("blue", "on")
+                        self.sys_led.set_status("blue", "blink")
 
             # if card not in the database - add it and grant access
             else:
@@ -54,21 +53,26 @@ class ConfigMode(BaseMode):
                     if success:
                         self.sys_led.set_status("green", "on")
                         time.sleep(2)
-                        self.sys_led.set_status("blue", "on")
+                        self.sys_led.set_status("blue", "blink")
 
     def run(self) -> int:
         """The main loop of the mode."""
         try:
             print("Mode: ", self)
-            time.sleep(2)
-            while True:
-                if self.config_btn.pressed():
-                    return self.default_mode
+            self._init_threads()
+            time.sleep(1)
+
+            while not self._exit:
+                self._check_timeout()
+                if self._config_btn_is_pressed == 1:
+                    return 0
                 self.curr_time = time.perf_counter_ns()
                 self._manage_cards(self.r1)
                 self._manage_cards(self.r2)
                 time.sleep(1)
+            return 0
         except Exception as e:
             self.logger.log(1, str(e))
         finally:
             self.wifi_controller.turn_off()
+            self._stop()

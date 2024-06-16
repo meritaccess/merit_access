@@ -5,7 +5,7 @@ import struct
 from getmac import get_mac_address
 from abc import ABC, abstractmethod
 import threading
-from Logger.Logger import Logger
+from Logger.LoggerDB import LoggerDB
 from LedInfo.LedInfo import LedInfo
 from Reader.ReaderWiegand import ReaderWiegand
 from Button.Button import Button
@@ -13,7 +13,7 @@ from DatabaseController.DatabaseController import DatabaseController
 from WifiController.WifiController import WifiController
 
 
-class BaseMode(ABC):
+class BaseModeABC(ABC):
     """
     An abstract base class for defining operational modes within an access control system. It provides common
     attributes and methods that all modes should implement.
@@ -21,29 +21,29 @@ class BaseMode(ABC):
 
     def __init__(
         self,
-        default_mode: int,
-        logger: Logger,
+        logger: LoggerDB,
         sys_led: LedInfo,
-        r1: ReaderWiegand,
-        r2: ReaderWiegand,
         config_btn: Button,
         db_controller: DatabaseController,
         wifi_controller: WifiController,
     ) -> None:
-        self.default_mode: int = default_mode
         self.mac: str = self._get_mac_addr()
-        self.curr_time: int = time.perf_counter_ns()
         self.mode_name: str = "BaseMode"
+        self._exit: bool = False
+
+        # 0 - Not pressed, 1 - short press, 2 - long press
+        self._config_btn_is_pressed: int = 0
+
+        # threading
+        self._config_buttons_thread = None
+        self._stop_event = threading.Event()
 
         # objects
-        self.logger: Logger = logger
+        self.logger: LoggerDB = logger
         self.sys_led: LedInfo = sys_led
-        self.r1: ReaderWiegand = r1
-        self.r2: ReaderWiegand = r2
         self.config_btn: Button = config_btn
         self.db_controller: DatabaseController = db_controller
         self.wifi_controller: WifiController = wifi_controller
-
         self._wifi_setup()
 
     def _get_ip_address(self, ifname):
@@ -60,6 +60,9 @@ class BaseMode(ABC):
     def _wifi_setup(self) -> None:
         self.wifi_controller.turn_off()
 
+    def exit(self) -> None:
+        self._exit = True
+
     def _get_mac_addr(self, interface="eth0") -> str:
         """
         Retrieves the MAC address for the specified network interface.
@@ -68,6 +71,33 @@ class BaseMode(ABC):
         mac = "MDU" + eth_mac.replace(":", "")
         mac = mac.upper()
         return mac
+
+    def _init_threads(self) -> None:
+        if not self.is_thread_running("config_btn"):
+            self._config_btn_check()
+
+    def _config_btn_check(self):
+        self._config_buttons_thread = threading.Thread(
+            target=self._thread_config_btn, daemon=True, name="config_btn"
+        )
+        self._config_buttons_thread.start()
+
+    def _thread_config_btn(self) -> None:
+        while not self._stop_event.is_set():
+            if self.config_btn.pressed():
+                press_time = time.time()
+                time.sleep(0.1)
+                while self.config_btn.pressed():
+                    continue
+                if time.time() - press_time > 5:
+                    self._config_btn_is_pressed = 2
+                else:
+                    self._config_btn_is_pressed = 1
+
+    def _stop(self) -> None:
+        self._stop_event.set()
+        if self._config_buttons_thread:
+            self._config_buttons_thread.join()
 
     def is_thread_running(self, thread_name) -> bool:
         for thread in threading.enumerate():
