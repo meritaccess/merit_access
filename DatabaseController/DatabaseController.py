@@ -1,10 +1,6 @@
 from datetime import datetime
 from typing import Tuple, Any, List
-
 import mysql.connector
-from mysql.connector.connection import MySQLConnection
-from mysql.connector.cursor import MySQLCursor
-
 
 from Logger.Logger import Logger
 from constants import DB_HOST, DB_PASS, DB_USER, DB_NAME
@@ -22,7 +18,7 @@ class DatabaseController:
         self._db_name: str = DB_NAME
         self._db_logger: Logger = Logger()
 
-    def _connect(self) -> Tuple[MySQLConnection, MySQLCursor]:
+    def _connect(self):
         """
         Establishes a connection to the database and returns both the connection and cursor objects.
         """

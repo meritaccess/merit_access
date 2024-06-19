@@ -1,21 +1,9 @@
-import RPi.GPIO as GPIO
+import pigpio
 import time
 import os
 
-from constants import (
-    R1_BEEP,
-    R1_RED_LED,
-    R1_GREEN_LED,
-    RELAY1,
-    R2_BEEP,
-    R2_RED_LED,
-    R2_GREEN_LED,
-    RELAY2,
-    CONFIG_BTN,
-    OPEN1,
-    OPEN2,
-    APP_PATH,
-)
+from constants import R1_BEEP, R1_RED_LED, R1_GREEN_LED, RELAY1, R2_BEEP, R2_RED_LED
+from constants import R2_GREEN_LED, RELAY2, CONFIG_BTN, OPEN1, OPEN2, APP_PATH
 from LedInfo.LedInfo import LedInfo
 from Reader.ReaderWiegand import ReaderWiegand
 from Logger.LoggerDB import LoggerDB
@@ -39,7 +27,7 @@ class MeritAccessApp:
     """
 
     def __init__(self) -> None:
-        GPIO.setmode(GPIO.BCM)
+        self.pi = pigpio.pi()
 
         # software objects
         self.db_controller: DatabaseController = DatabaseController()
@@ -48,24 +36,22 @@ class MeritAccessApp:
         self.network_controller: NetworkController = NetworkController()
 
         # hardware objects
-        self.sys_led: LedInfo = LedInfo()
+        self.sys_led: LedInfo = LedInfo(pi=self.pi)
         self.r1: ReaderWiegand = ReaderWiegand(
-            r_id=1,
-            beep=R1_BEEP,
-            green_led=R1_GREEN_LED,
-            red_led=R1_RED_LED,
+            r_id=1, beep=R1_BEEP, green_led=R1_GREEN_LED, red_led=R1_RED_LED, pi=self.pi
         )
         self.r2: ReaderWiegand = ReaderWiegand(
-            r_id=2,
-            beep=R2_BEEP,
-            green_led=R2_GREEN_LED,
-            red_led=R2_RED_LED,
+            r_id=2, beep=R2_BEEP, green_led=R2_GREEN_LED, red_led=R2_RED_LED, pi=self.pi
         )
-        self.door_unit1: DoorUnit = DoorUnit("DU1", reader=self.r1, relay=RELAY1)
-        self.door_unit2: DoorUnit = DoorUnit("DU2", reader=self.r2, relay=RELAY2)
-        self.open_btn1: Button = Button(pin=OPEN1, btn_id="OpenBtn1")
-        self.open_btn2: Button = Button(pin=OPEN2, btn_id="OpenBtn2")
-        self.config_btn: Button = Button(pin=CONFIG_BTN, btn_id="ConfigBtn")
+        self.door_unit1: DoorUnit = DoorUnit(
+            "DU1", reader=self.r1, relay=RELAY1, pi=self.pi
+        )
+        self.door_unit2: DoorUnit = DoorUnit(
+            "DU2", reader=self.r2, relay=RELAY2, pi=self.pi
+        )
+        self.open_btn1: Button = Button(pin=OPEN1, btn_id="OpenBtn1", pi=self.pi)
+        self.open_btn2: Button = Button(pin=OPEN2, btn_id="OpenBtn2", pi=self.pi)
+        self.config_btn: Button = Button(pin=CONFIG_BTN, btn_id="ConfigBtn", pi=self.pi)
 
         # setup
         # 0 - cloud, 1 - offline
@@ -143,7 +129,6 @@ class MeritAccessApp:
                 time.sleep(1)
             self.sys_led.set_status("black", "off")
             self.sys_led.stop()
-            GPIO.cleanup()
             self.logger.log(3, "Exitting app")
 
     def __str__(self) -> str:

@@ -1,7 +1,7 @@
 import threading
 import time
 from typing import Tuple, Dict
-import RPi.GPIO as GPIO
+import pigpio
 from constants import SYS_LED_BLUE, SYS_LED_GREEN, SYS_LED_RED
 
 
@@ -19,6 +19,7 @@ class LedInfo:
 
     def __init__(
         self,
+        pi,
         r: int = SYS_LED_RED,
         g: int = SYS_LED_GREEN,
         b: int = SYS_LED_BLUE,
@@ -27,6 +28,7 @@ class LedInfo:
         self._r: int = r
         self._g: int = g
         self._b: int = b
+        self._pi = pi
 
         # Color constants
         self.color_map: Dict[str, Tuple[int, int, int]] = {
@@ -51,17 +53,17 @@ class LedInfo:
 
     def _init_hw(self) -> None:
         """Initializes the GPIO pins for LED control."""
-        GPIO.setup(self._r, GPIO.OUT)
-        GPIO.setup(self._g, GPIO.OUT)
-        GPIO.setup(self._b, GPIO.OUT)
+        self._pi.set_mode(self._r, pigpio.OUTPUT)
+        self._pi.set_mode(self._g, pigpio.OUTPUT)
+        self._pi.set_mode(self._b, pigpio.OUTPUT)
 
-        self.pwm_r = GPIO.PWM(self._r, 1000)
-        self.pwm_g = GPIO.PWM(self._g, 1000)
-        self.pwm_b = GPIO.PWM(self._b, 1000)
+        self._pi.set_PWM_frequency(self._r, 1000)
+        self._pi.set_PWM_frequency(self._g, 1000)
+        self._pi.set_PWM_frequency(self._b, 1000)
 
-        self.pwm_r.start(0)
-        self.pwm_g.start(0)
-        self.pwm_b.start(0)
+        self._pi.set_PWM_dutycycle(self._r, 0)
+        self._pi.set_PWM_dutycycle(self._g, 0)
+        self._pi.set_PWM_dutycycle(self._b, 0)
 
     def set_status(self, color, style: str) -> None:
         """
@@ -100,9 +102,9 @@ class LedInfo:
         """
         Sets the LED's color using RGB values.
         """
-        self.pwm_r.ChangeDutyCycle(rgb[0] / 255 * 100)
-        self.pwm_g.ChangeDutyCycle(rgb[1] / 255 * 100)
-        self.pwm_b.ChangeDutyCycle(rgb[2] / 255 * 100)
+        self._pi.set_PWM_dutycycle(self._r, rgb[0] / 255 * 255)
+        self._pi.set_PWM_dutycycle(self._g, rgb[1] / 255 * 255)
+        self._pi.set_PWM_dutycycle(self._b, rgb[2] / 255 * 255)
 
     def _set_style(self, style: str) -> None:
         """
@@ -131,9 +133,9 @@ class LedInfo:
         """
         Stops the LED control thread and cleans up GPIO.
         """
-        self.pwm_r.stop()
-        self.pwm_g.stop()
-        self.pwm_b.stop()
+        self._pi.set_PWM_dutycycle(self._r, 0)
+        self._pi.set_PWM_dutycycle(self._g, 0)
+        self._pi.set_PWM_dutycycle(self._b, 0)
         self._stop_event.set()
         if self._style_thread:
             self._style_thread.join()

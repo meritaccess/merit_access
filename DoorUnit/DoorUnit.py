@@ -1,6 +1,6 @@
 import threading
 import time
-import RPi.GPIO as GPIO
+import pigpio
 from Reader.ReaderWiegand import ReaderWiegand
 
 
@@ -9,20 +9,21 @@ class DoorUnit:
     Manages door operations such as opening the door and controlling door hardware.
     """
 
-    def __init__(self, du_id: str, reader: ReaderWiegand, relay: int) -> None:
+    def __init__(self, du_id: str, reader: ReaderWiegand, relay: int, pi) -> None:
         self.openning: bool = False
         self.extra_time: bool = False
         self._relay: int = relay
         self._id: str = du_id
         self._reader: ReaderWiegand = reader
+        self._pi = pi
         self._init_hw()
 
     def _init_hw(self) -> None:
         """
         Initializes the hardware components.
         """
-        GPIO.setup(self._relay, GPIO.OUT)
-        GPIO.output(self._relay, GPIO.LOW)
+        self._pi.set_mode(self._relay, pigpio.OUTPUT)
+        self._pi.write(self._relay, pigpio.LOW)
 
     def open_door(self) -> None:
         print("Opening door: ", self._id)
@@ -36,14 +37,14 @@ class DoorUnit:
         """
         Thread to open door.
         """
-        GPIO.output(self._relay, GPIO.HIGH)
+        self._pi.write(self._relay, pigpio.HIGH)
         self._reader.beep_on()
         self._reader.led_on("green")
         time.sleep(3)
         while self.extra_time:
             self.extra_time = False
             time.sleep(3)
-        GPIO.output(self._relay, GPIO.LOW)
+        self._pi.write(self._relay, pigpio.LOW)
         self._reader.beep_off()
         self._reader.led_off("green")
         self.openning = False

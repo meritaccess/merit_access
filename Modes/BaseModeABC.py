@@ -5,9 +5,9 @@ import struct
 from getmac import get_mac_address
 from abc import ABC, abstractmethod
 import threading
+
 from Logger.LoggerDB import LoggerDB
 from LedInfo.LedInfo import LedInfo
-from Reader.ReaderWiegand import ReaderWiegand
 from Button.Button import Button
 from DatabaseController.DatabaseController import DatabaseController
 from WifiController.WifiController import WifiController

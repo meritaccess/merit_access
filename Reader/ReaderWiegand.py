@@ -1,5 +1,5 @@
 import threading
-import RPi.GPIO as GPIO
+import pigpio
 from typing import Optional
 from queue import Queue
 from constants import READER_PATH
@@ -16,6 +16,7 @@ class ReaderWiegand:
         green_led: int,
         red_led: int,
         beep: int,
+        pi,
         device_path: str = READER_PATH,
     ) -> None:
         self.id: int = r_id
@@ -23,6 +24,7 @@ class ReaderWiegand:
         self._green_led: int = green_led
         self._red_led: int = red_led
         self._beep: int = beep
+        self._pi = pi
         self._device_path: str = device_path + str(self.id)
         self._data_queue = Queue()
         self.read_count = 0
@@ -35,15 +37,15 @@ class ReaderWiegand:
         Initializes the hardware components, setting GPIO pin modes for input or output as appropriate and
         configuring pull-up resistors for the data lines.
         """
-        GPIO.setup(self._beep, GPIO.OUT)
-        GPIO.setup(self._green_led, GPIO.OUT)
-        GPIO.setup(self._red_led, GPIO.OUT)
+        self._pi.set_mode(self._beep, pigpio.OUTPUT)
+        self._pi.set_mode(self._green_led, pigpio.OUTPUT)
+        self._pi.set_mode(self._red_led, pigpio.OUTPUT)
         self._set_pins_to_low()
 
     def _set_pins_to_low(self) -> None:
-        GPIO.output(self._beep, GPIO.LOW)
-        GPIO.output(self._red_led, GPIO.LOW)
-        GPIO.output(self._green_led, GPIO.LOW)
+        self._pi.write(self._beep, pigpio.LOW)
+        self._pi.write(self._red_led, pigpio.LOW)
+        self._pi.write(self._green_led, pigpio.LOW)
 
     def read(self):
         if not self._data_queue.empty():
@@ -80,23 +82,25 @@ class ReaderWiegand:
 
     def beep_on(self, intensity: Optional[int] = 255) -> None:
         intensity = self._check_pwm_range(intensity)
-        GPIO.output(self._beep, GPIO.HIGH if intensity > 0 else GPIO.LOW)
+        self._pi.write(self._beep, pigpio.HIGH if intensity > 0 else pigpio.LOW)
 
     def beep_off(self) -> None:
-        GPIO.output(self._beep, GPIO.LOW)
+        self._pi.write(self._beep, pigpio.LOW)
 
     def led_on(self, color: str, intensity: Optional[int] = 255) -> None:
         intensity = self._check_pwm_range(intensity)
         if color == "green":
-            GPIO.output(self._green_led, GPIO.HIGH if intensity > 0 else GPIO.LOW)
+            self._pi.write(
+                self._green_led, pigpio.HIGH if intensity > 0 else pigpio.LOW
+            )
         elif color == "red":
-            GPIO.output(self._red_led, GPIO.HIGH if intensity > 0 else GPIO.LOW)
+            self._pi.write(self._red_led, pigpio.HIGH if intensity > 0 else pigpio.LOW)
 
     def led_off(self, color: str) -> None:
         if color == "green":
-            GPIO.output(self._green_led, GPIO.LOW)
+            self._pi.write(self._green_led, pigpio.LOW)
         elif color == "red":
-            GPIO.output(self._red_led, GPIO.LOW)
+            self._pi.write(self._red_led, pigpio.LOW)
 
     def __str__(self) -> str:
         return str(self.id)

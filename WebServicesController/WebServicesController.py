@@ -2,10 +2,11 @@ import threading
 from zeep import Client
 from zeep.transports import Transport
 import xml.etree.ElementTree as ET
-from Logger.Logger import Logger
-from DatabaseController.DatabaseController import DatabaseController
 from datetime import datetime
 import time
+
+from Logger.Logger import Logger
+from DatabaseController.DatabaseController import DatabaseController
 
 
 class WebServicesController:
