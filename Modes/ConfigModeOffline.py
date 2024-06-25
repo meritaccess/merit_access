@@ -1,7 +1,7 @@
 import time
 from datetime import datetime as dt
 
-from Reader.ReaderWiegand import ReaderWiegand
+from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 from Modes.ConfigModeCloud import ConfigModeCloud
 
 
@@ -61,6 +61,7 @@ class ConfigModeOffline(ConfigModeCloud):
         try:
             print("Mode: ", self)
             self._init_threads()
+            self._wifi_setup()
             time.sleep(1)
 
             while not self._exit:
@@ -75,5 +76,5 @@ class ConfigModeOffline(ConfigModeCloud):
         except Exception as e:
             self.logger.log(1, str(e))
         finally:
-            self.wifi_controller.turn_off()
+            self.wifi_controller.ap_off()
             self._stop()

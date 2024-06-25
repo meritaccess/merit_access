@@ -1,7 +1,7 @@
 import threading
 import time
 import pigpio
-from Reader.ReaderWiegand import ReaderWiegand
+from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 
 
 class DoorUnit:

@@ -16,7 +16,7 @@ class ConfigModeABC(BaseModeABC):
         self._start_time = time.time()
 
     def _wifi_setup(self) -> None:
-        self.wifi_controller.turn_on()
+        self.wifi_controller.ap_on()
 
     def _check_timeout(self) -> None:
         if self._start_time + self._max_runtime < time.time():

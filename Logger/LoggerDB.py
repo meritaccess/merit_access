@@ -1,5 +1,5 @@
 from Logger.Logger import Logger
-from DatabaseController.DatabaseController import DatabaseController
+from DataControllers.DatabaseController import DatabaseController
 from typing import Any
 from datetime import datetime as dt
 import os

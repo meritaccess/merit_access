@@ -13,6 +13,9 @@ class ConfigModeConnect(ConfigModeABC):
         self.sys_led.set_status("white", "blink_fast")
         self._uid_generator: GeneratorID = GeneratorID()
 
+    def _wifi_setup(self) -> None:
+        pass
+
     def run(self) -> int:
         """The main loop of the mode."""
         try:
@@ -31,5 +34,4 @@ class ConfigModeConnect(ConfigModeABC):
         except Exception as e:
             self.logger.log(1, str(e))
         finally:
-            self.wifi_controller.turn_off()
             self._stop()

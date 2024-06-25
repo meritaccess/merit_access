@@ -6,7 +6,7 @@ from datetime import datetime
 import time
 
 from Logger.Logger import Logger
-from DatabaseController.DatabaseController import DatabaseController
+from DataControllers.DatabaseController import DatabaseController
 
 
 class WebServicesController:

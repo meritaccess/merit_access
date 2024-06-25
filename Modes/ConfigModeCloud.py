@@ -20,6 +20,7 @@ class ConfigModeCloud(ConfigModeABC):
         try:
             print("Mode: ", self)
             self._init_threads()
+            self._wifi_setup()
             time.sleep(1)
 
             while not self._exit:
@@ -34,5 +35,5 @@ class ConfigModeCloud(ConfigModeABC):
         except Exception as e:
             self.logger.log(1, str(e))
         finally:
-            self.wifi_controller.turn_off()
+            self.wifi_controller.ap_off()
             self._stop()

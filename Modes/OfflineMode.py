@@ -2,10 +2,10 @@ import time
 from datetime import datetime as dt
 import threading
 
-from Reader.ReaderWiegand import ReaderWiegand
-from DoorUnit.DoorUnit import DoorUnit
+from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
+from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
 from Modes.BaseModeABC import BaseModeABC
-from Button.Button import Button
+from HardwareComponents.Button.Button import Button
 
 
 class OfflineMode(BaseModeABC):
@@ -35,9 +35,6 @@ class OfflineMode(BaseModeABC):
         self.mode_name: str = "OfflineMode"
         self.sys_led.set_status("magenta", "on")
 
-        # threading
-        self._open_buttons_thread = None
-
     def _open_door(self, door_unit: DoorUnit) -> None:
         if door_unit.openning:
             door_unit.extra_time = True
@@ -53,9 +50,6 @@ class OfflineMode(BaseModeABC):
             if self.db_controller.card_access_local(card_id, reader.id, dt.now()):
                 self._open_door(door_unit)
 
-    def _network_setup(self) -> None:
-        pass
-
     def _initial_setup(self) -> None:
         """
         Performs initial setup tasks, such as logging start information and updating database values.
@@ -63,7 +57,7 @@ class OfflineMode(BaseModeABC):
         self.logger.log(3, "Starting app...")
         self.logger.log(3, self.mode_name)
         self.logger.log(3, "Reading DU config from DB...")
-        self.db_controller.set_val("running", "MyID", self.mac)
+        self.db_controller.set_val("running", "MyID", self._mac)
         self.logger.log(
             3, "DoorUnit ID: " + self.db_controller.get_val("running", "MyID")
         )
@@ -72,23 +66,23 @@ class OfflineMode(BaseModeABC):
         self.db_controller.set_val("running", "R1ReadError", self.r1.read_err)
         self.db_controller.set_val("running", "R2ReadCount", self.r2.read_count)
         self.db_controller.set_val("running", "R2ReadError", self.r2.read_err)
-        self._network_setup()
         time.sleep(1)
 
     def _init_threads(self) -> None:
-        if not self.is_thread_running("open_btns"):
+        if not self._is_thread_running("open_btns"):
             self._open_btns_check()
-        if not self.is_thread_running("config_btn"):
+        if not self._is_thread_running("config_btn"):
             self._config_btn_check()
 
     def _open_btns_check(self) -> None:
         """
         Checks if open buttons are pressed and opens the corresponding doors.
         """
-        self._open_buttons_thread = threading.Thread(
+        t = threading.Thread(
             target=self._thread_open_btns, daemon=True, name="open_btns"
         )
-        self._open_buttons_thread.start()
+        self._threads.append(t)
+        t.start()
 
     def _thread_open_btns(self) -> None:
         while not self._stop_event.is_set():
@@ -98,13 +92,6 @@ class OfflineMode(BaseModeABC):
             if self.open_btn2.pressed():
                 if not self.door_unit2.openning:
                     self.door_unit2.open_door()
-
-    def _stop(self) -> None:
-        self._stop_event.set()
-        if self._open_buttons_thread:
-            self._open_buttons_thread.join()
-        if self._config_buttons_thread:
-            self._config_buttons_thread.join()
 
     def run(self) -> int:
         """The main loop of the mode."""

@@ -25,6 +25,8 @@ DB_USER = "ma"
 DB_PASS = "FrameWork5414*"
 DB_NAME = "MeritAccessLocal"
 
+# ACCESS POINT
+AP_PASS = "meritmerit"
 
 # PATHS
 LOG_DIR = "logs/"
