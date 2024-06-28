@@ -49,6 +49,7 @@ class OfflineMode(BaseModeABC):
         if card_id:
             if self.db_controller.card_access_local(card_id, reader.id, dt.now()):
                 self._open_door(door_unit)
+            self.db_controller.set_val("running", f"R{reader.id}ReadCount", reader.read_count)
 
     def _initial_setup(self) -> None:
         """

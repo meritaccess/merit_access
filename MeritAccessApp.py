@@ -146,7 +146,13 @@ class MeritAccessApp:
     def _thread_update_ip(self) -> None:
         while not self._stop_event.is_set():
             current_ip = self._network_controller.get_ip_address()
+            if not current_ip:
+                time.sleep(1)
+                continue
             old_ip = self._db_controller.get_val("running", "MyIP")
+            if not self._config_mode == 0:
+                time.sleep(1)
+                continue
             if current_ip != old_ip:
                 self._db_controller.set_val("running", "MyIP", current_ip)
             time.sleep(1)

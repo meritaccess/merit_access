@@ -60,8 +60,27 @@ class DatabaseController:
         """
         mydb, cur = self._connect()
         try:
-            arg = (table, prop, str(value))
-            cur.callproc("SetVal", arg)
+            tables = ["running", "ConfigDU"]
+            if table not in tables:
+                return False
+
+            select_query = f"SELECT value FROM {table} WHERE property LIKE %s"
+            running_update_query = f"UPDATE {table} SET value = %s, lastchange = %s WHERE property LIKE %s"
+            update_query = f"UPDATE {table} SET value = %s WHERE property LIKE %s"
+            insert_query = f"INSERT INTO {table} (property, value) VALUES (%s, %s)"
+
+            cur.execute(select_query, (prop,))
+            result = cur.fetchone()
+
+            if result:
+                if table == "running":
+                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    cur.execute(running_update_query, (value, current_time, prop))
+                else:
+                    cur.execute(update_query, (value, prop))
+            else:
+                cur.execute(insert_query, (prop, value))
+
             mydb.commit()
             cur.close()
             mydb.close()
