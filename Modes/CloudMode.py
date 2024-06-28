@@ -51,6 +51,7 @@ class CloudMode(OfflineMode):
                 self._open_door(door_unit)
                 self.update = True
             self.ws_controller.insert_to_access(card_id, reader.id, dt.now())
+            self.db_controller.set_val("running", f"R{reader.id}ReadCount", reader.read_count)
 
     def _check_ws(self, time_period: int) -> None:
         t = threading.Thread(
