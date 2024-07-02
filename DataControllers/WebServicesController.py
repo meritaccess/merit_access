@@ -5,7 +5,7 @@ import xml.etree.ElementTree as ET
 from datetime import datetime
 import time
 
-from Logger.Logger import Logger
+from Logger.LoggerDB import LoggerDB
 from DataControllers.DatabaseController import DatabaseController
 
 
@@ -19,7 +19,7 @@ class WebServicesController:
         self.loading: bool = False
         self.db_controller: DatabaseController = db_controller
         self.ws_addr: str = self.db_controller.get_val("ConfigDU", "ws")
-        self.ws_logger: Logger = Logger()
+        self.ws_logger: LoggerDB = LoggerDB(db_controller=self.db_controller)
         self.last_access = time.time()
 
     def _thread_load_all_cards_from_ws(self) -> None:
@@ -105,7 +105,9 @@ class WebServicesController:
                 return True
             return False
 
-    def insert_to_access(self, card: str, reader: str, time: datetime) -> None:
+    def insert_to_access(
+        self, card: str, reader: str, time: datetime, status: int = 700
+    ) -> None:
         """Logs an access attempt to the web service."""
         print("Inserting to access online...")
         try:
@@ -119,7 +121,9 @@ class WebServicesController:
             else:
                 myterm = "MDB" + self.mac[3:]
             mcard = " ".join(card.split())
-            result = client.service.InsertToAccess(myterm, mcard, reader, mytime)
+            result = client.service.InsertToAccess(
+                myterm, mcard, reader, mytime, status
+            )
         except Exception as e:
             self.ws_logger.log(1, str(e))
         finally:

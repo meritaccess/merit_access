@@ -55,7 +55,9 @@ class WifiController:
                     check=True,
                 )
             if self.check_connection():
-                print(f"Connected to WiFi {self._wifi_ssid}.")
+                text = f"Connected to WiFi {self._wifi_ssid}."
+                print(text)
+                self._logger.log(3, text)
             else:
                 print(f"Failed to connect to WiFi {self._wifi_ssid}.")
         except subprocess.CalledProcessError as e:
@@ -68,9 +70,13 @@ class WifiController:
     def wifi_disconnect(self) -> None:
         try:
             if self.check_connection():
-                subprocess.run(["sudo", "nmcli", "connection", "down", self._wifi_ssid])
+                subprocess.run(
+                    ["sudo", "nmcli", "device", "disconnect", self._interface]
+                )
             if not self.check_connection():
-                print(f"Disconnected from WiFi {self._wifi_ssid}.")
+                text = f"Disconnected from WiFi {self._wifi_ssid}."
+                print(text)
+                self._logger.log(3, text)
         except subprocess.CalledProcessError as e:
             err = f"Error disconnecting from WiFi {self._wifi_ssid}: {e.stderr.strip()}"
             self._logger.log(1, err)
@@ -113,7 +119,9 @@ class WifiController:
                 check=True,
             )
             subprocess.run(args + ["up", "Hotspot"], check=True)
-            print(f"Access Point {self._ap_ssid} turned on.")
+            text = f"Access Point {self._ap_ssid} turned on."
+            print(text)
+            self._logger.log(3, text)
         except subprocess.CalledProcessError as e:
             err = f"Error turning on Access Point {self._ap_ssid}: {e.stderr.strip()}"
             self._logger.log(1, err)
@@ -126,7 +134,9 @@ class WifiController:
             subprocess.run(
                 ["sudo", "nmcli", "connection", "down", "Hotspot"], check=True
             )
-            print(f"Access Point {self._ap_ssid} turned off.")
+            text = f"Access Point {self._ap_ssid} turned off."
+            print(text)
+            self._logger.log(3, text)
         except subprocess.CalledProcessError as e:
             err = f"Error turning off Access Point {self._ap_ssid}: {e.stderr.strip()}"
             self._logger.log(1, err)
@@ -186,6 +196,31 @@ class WifiController:
             err = f"Unexpected error: {e}"
             self._logger.log(1, err)
             return ""
+
+    def check_wifi_connection(self):
+        try:
+            result = subprocess.run(
+                [
+                    "nmcli",
+                    "-t",
+                    "-f",
+                    "ACTIVE,TYPE,DEVICE",
+                    "connection",
+                    "show",
+                    "--active",
+                ],
+                capture_output=True,
+                text=True,
+            )
+            active_connections = result.stdout.strip().split("\n")
+            for connection in active_connections:
+                active, conn_type, device = connection.strip().split(":")
+                if active == "yes" and device == "wlan0":
+                    return True
+            return False
+        except subprocess.CalledProcessError as e:
+            print(f"Failed to check Wi-Fi connection: {e}")
+            return False
 
     def __str__(self) -> str:
         return "Wifi Controller"

@@ -13,13 +13,13 @@ class ConfigModeOffline(ConfigModeCloud):
 
     def __init__(self, *args, r1: ReaderWiegand, r2: ReaderWiegand, **kwargs):
         super().__init__(*args, **kwargs)
-        self.r1: ReaderWiegand = r1
-        self.r2: ReaderWiegand = r2
-        self.mode_name: str = "ConfigModeOffline"
-        self.sys_led.set_status("blue", "blink")
-        self.easy_add = bool(int(self.db_controller.get_val("ConfigDU", "easy_add")))
-        self.easy_remove = bool(
-            int(self.db_controller.get_val("ConfigDU", "easy_remove"))
+        self._r1: ReaderWiegand = r1
+        self._r2: ReaderWiegand = r2
+        self._mode_name: str = "ConfigModeOffline"
+        self._sys_led.set_status("blue", "blink")
+        self._easy_add = bool(int(self._db_controller.get_val("ConfigDU", "easy_add")))
+        self._easy_remove = bool(
+            int(self._db_controller.get_val("ConfigDU", "easy_remove"))
         )
 
     def _manage_cards(self, reader: ReaderWiegand) -> None:
@@ -31,17 +31,17 @@ class ConfigModeOffline(ConfigModeCloud):
         card_id = reader.read()
         if card_id:
             # if card has access - remove it
-            if self.db_controller.card_access_local(card_id, reader.id, dt.now()):
-                if self.easy_remove:
-                    success = self.db_controller.remove_access(card_id, reader.id)
+            if self._db_controller.check_card_access(card_id, reader.id, dt.now()):
+                if self._easy_remove:
+                    success = self._db_controller.remove_access(card_id, reader.id)
                     if success:
-                        self.sys_led.set_status("red", "on")
+                        self._sys_led.set_status("red", "on")
                         time.sleep(2)
-                        self.sys_led.set_status("blue", "blink")
+                        self._sys_led.set_status("blue", "blink")
 
             # if card not in the database - add it and grant access
             else:
-                if self.easy_add:
+                if self._easy_add:
                     args = [
                         card_id,
                         reader.id,
@@ -50,16 +50,17 @@ class ConfigModeOffline(ConfigModeCloud):
                         0,
                         "Added in ConfigMode",
                     ]
-                    success = self.db_controller.grant_access(args)
+                    success = self._db_controller.grant_access(args)
                     if success:
-                        self.sys_led.set_status("green", "on")
+                        self._sys_led.set_status("green", "on")
                         time.sleep(2)
-                        self.sys_led.set_status("blue", "blink")
+                        self._sys_led.set_status("blue", "blink")
 
     def run(self) -> int:
         """The main loop of the mode."""
         try:
             print("Mode: ", self)
+            self._initial_setup()
             self._init_threads()
             self._wifi_setup()
             time.sleep(1)
@@ -69,12 +70,12 @@ class ConfigModeOffline(ConfigModeCloud):
                 if self._config_btn_is_pressed == 1:
                     return 0
                 self.curr_time = time.perf_counter_ns()
-                self._manage_cards(self.r1)
-                self._manage_cards(self.r2)
+                self._manage_cards(self._r1)
+                self._manage_cards(self._r2)
                 time.sleep(1)
             return 0
         except Exception as e:
-            self.logger.log(1, str(e))
+            self._logger.log(1, str(e))
         finally:
-            self.wifi_controller.ap_off()
+            self._wifi_controller.ap_off()
             self._stop()

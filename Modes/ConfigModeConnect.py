@@ -9,8 +9,8 @@ class ConfigModeConnect(ConfigModeABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mode_name: str = "ConfigModeConnect"
-        self.sys_led.set_status("white", "blink_fast")
+        self._mode_name: str = "ConfigModeConnect"
+        self._sys_led.set_status("white", "blink_fast")
         self._uid_generator: GeneratorID = GeneratorID()
 
     def _wifi_setup(self) -> None:
@@ -20,6 +20,7 @@ class ConfigModeConnect(ConfigModeABC):
         """The main loop of the mode."""
         try:
             print("Mode: ", self)
+            self._initial_setup()
             self._init_threads()
             time.sleep(1)
 
@@ -32,6 +33,6 @@ class ConfigModeConnect(ConfigModeABC):
                 time.sleep(1)
             return 0
         except Exception as e:
-            self.logger.log(1, str(e))
+            self._logger.log(1, str(e))
         finally:
             self._stop()

@@ -85,7 +85,8 @@ class NetworkController:
             subprocess.run(args + ["ipv4.dns", dns], check=True)
             subprocess.run(args + ["ipv4.method", "manual"], check=True)
             self.reset_connection()
-            print(f"Static IP {ip} set successfully on {self._connection}.")
+            text = f"Static IP {ip} set successfully on {self._connection}."
+            self._logger.log(3, text)
         except subprocess.CalledProcessError as e:
             err = f"Failed to set static IP: {e.stderr.strip()}"
             self._logger.log(1, err)
@@ -101,7 +102,8 @@ class NetworkController:
             subprocess.run(args + ["ipv4.gateway", ""], check=True)
             subprocess.run(args + ["ipv4.address", ""], check=True)
             self.reset_connection()
-            print(f"DHCP enabled successfully on {self._connection}.")
+            text = f"DHCP enabled successfully on {self._connection}."
+            self._logger.log(3, text)
         except subprocess.CalledProcessError as e:
             err = f"Failed to enable DHCP: {e.stderr.strip()}"
             self._logger.log(1, err)

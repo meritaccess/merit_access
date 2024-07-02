@@ -25,7 +25,7 @@ class BaseModeABC(ABC):
         wifi_controller: WifiController,
     ) -> None:
 
-        self.mode_name: str = "BaseMode"
+        self._mode_name: str = "BaseMode"
         self._mac: str = mac
         self._exit: bool = False
 
@@ -37,11 +37,11 @@ class BaseModeABC(ABC):
         self._threads = []
 
         # objects
-        self.logger: LoggerDB = logger
-        self.sys_led: LedInfo = sys_led
-        self.config_btn: Button = config_btn
-        self.db_controller: DatabaseController = db_controller
-        self.wifi_controller: WifiController = wifi_controller
+        self._logger: LoggerDB = logger
+        self._sys_led: LedInfo = sys_led
+        self._config_btn: Button = config_btn
+        self._db_controller: DatabaseController = db_controller
+        self._wifi_controller: WifiController = wifi_controller
 
     def exit(self) -> None:
         self._exit = True
@@ -59,10 +59,10 @@ class BaseModeABC(ABC):
 
     def _thread_config_btn(self) -> None:
         while not self._stop_event.is_set():
-            if self.config_btn.pressed():
+            if self._config_btn.pressed():
                 press_time = time.time()
                 time.sleep(0.1)
-                while self.config_btn.pressed():
+                while self._config_btn.pressed():
                     continue
                 if time.time() - press_time > 5:
                     self._config_btn_is_pressed = 2
@@ -86,7 +86,7 @@ class BaseModeABC(ABC):
         pass
 
     def __str__(self) -> str:
-        return self.mode_name
+        return self._mode_name
 
     def __repr__(self) -> str:
-        return self.mode_name
+        return self._mode_name

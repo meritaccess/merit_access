@@ -4,6 +4,7 @@ import subprocess
 import os
 from getmac import get_mac_address
 import threading
+from datetime import datetime as dt
 
 from constants import R1_BEEP, R1_RED_LED, R1_GREEN_LED, RELAY1, R2_BEEP, R2_RED_LED
 from constants import R2_GREEN_LED, RELAY2, CONFIG_BTN, OPEN1, OPEN2, APP_PATH, AP_PASS
@@ -36,6 +37,7 @@ class MeritAccessApp:
         # software objects
         self._db_controller: DatabaseController = DatabaseController()
         self._logger: LoggerDB = LoggerDB(db_controller=self._db_controller)
+        self._logger.log(3, f"Starting app...")
         self._wifi_controller: WifiController = self._get_wifi_controller()
         self._network_controller: NetworkController = NetworkController(self._logger)
         self._network_settings()
@@ -82,6 +84,14 @@ class MeritAccessApp:
         self._threads = []
         self._run_all_checks()
 
+    def _initial_setup(self) -> None:
+        self._logger.log(3, "Reading DU config from DB...")
+        self._db_controller.set_val("running", "MyID", self._mac)
+        self._logger.log(
+            3, "DoorUnit ID: " + self._db_controller.get_val("running", "MyID")
+        )
+        self._db_controller.set_val("running", "LastStart", dt.now())
+
     def _run_all_checks(self) -> None:
         self._check_version()
         self._check_pending_reboot()
@@ -125,6 +135,9 @@ class MeritAccessApp:
             interface = "wlan0"
         else:
             interface = "eth0"
+            if self._wifi_controller.check_wifi_connection():
+                self._wifi_controller.wifi_disconnect()
+        self._logger.log(3, f"Interface: {interface}")
         self._network_controller.set_interface(interface)
 
     def _check_version(self) -> None:
@@ -188,8 +201,8 @@ class MeritAccessApp:
 
     def _check_reboot(self) -> None:
         if self._pending_reboot:
-            self._logger.log(2, "System reboot")
             try:
+                self._logger.log(2, "Scheduled system reboot due to setting changes")
                 subprocess.run(["sudo", "reboot"], check=True)
             except subprocess.CalledProcessError as e:
                 err = f"Error: {e}"
@@ -201,6 +214,7 @@ class MeritAccessApp:
         on the current system configuration, handling mode transitions as required.
         """
         # select and run different modes
+        self._initial_setup()
         try:
             args_base = [
                 self._mac,

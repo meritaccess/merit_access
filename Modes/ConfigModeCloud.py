@@ -12,13 +12,14 @@ class ConfigModeCloud(ConfigModeABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.mode_name: str = "ConfigModeCloud"
-        self.sys_led.set_status("blue", "blink")
+        self._mode_name: str = "ConfigModeCloud"
+        self._sys_led.set_status("blue", "blink")
 
     def run(self) -> int:
         """The main loop of the mode."""
         try:
             print("Mode: ", self)
+            self._initial_setup()
             self._init_threads()
             self._wifi_setup()
             time.sleep(1)
@@ -33,7 +34,7 @@ class ConfigModeCloud(ConfigModeABC):
                 time.sleep(1)
             return 0
         except Exception as e:
-            self.logger.log(1, str(e))
+            self._logger.log(1, str(e))
         finally:
-            self.wifi_controller.ap_off()
+            self._wifi_controller.ap_off()
             self._stop()

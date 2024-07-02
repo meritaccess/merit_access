@@ -65,7 +65,9 @@ class DatabaseController:
                 return False
 
             select_query = f"SELECT value FROM {table} WHERE property LIKE %s"
-            running_update_query = f"UPDATE {table} SET value = %s, lastchange = %s WHERE property LIKE %s"
+            running_update_query = (
+                f"UPDATE {table} SET value = %s, lastchange = %s WHERE property LIKE %s"
+            )
             update_query = f"UPDATE {table} SET value = %s WHERE property LIKE %s"
             insert_query = f"INSERT INTO {table} (property, value) VALUES (%s, %s)"
 
@@ -125,29 +127,48 @@ class DatabaseController:
             self._db_logger.log(1, str(e))
             return False
 
-    def card_access_local(self, card: str, reader: str, time: datetime) -> bool:
+    def check_card_access(
+        self, card: str, reader: str, time: datetime, state=10
+    ) -> bool:
         """
         Determines if a card has access permissions at a given reader and time.
         """
         mydb, cur = self._connect()
         try:
-            # time format: '2023-09-27 13:15:40'
-            arg = (
-                card,
-                reader,
-                time.strftime("%Y-%m-%d %H:%M:%S"),
-                0,
+            cur.execute(
+                "SELECT COUNT(cardid) FROM Karty WHERE Karta = %s AND Ctecka = %s AND Povoleni = 1",
+                (card, reader),
             )
-            res_args = cur.callproc("CanAccess", arg)
-            mydb.commit()
-            cur.close()
-            mydb.close()
-            if res_args[3] == 1:
-                return True
-            return False
+            access_allowed = cur.fetchone()[0]
+            return access_allowed > 0
         except Exception as e:
             self._db_logger.log(1, str(e))
             return False
+        finally:
+            cur.close()
+            mydb.close()
+
+    def insert_to_access(
+        self, card: str, reader: str, time: datetime, status: int = 700
+    ) -> bool:
+        """
+        Inserts an access attempt into the database.
+        """
+        mydb, cur = self._connect()
+        try:
+            cur.execute(
+                "INSERT INTO Access (Adresa, Karta, Ctecka, Tlacitko, Kdy, StavZpracovani)"
+                "VALUES ('localhost', %s, %s, 0, %s, %s)",
+                (card, reader, time.strftime("%Y-%m-%d %H:%M:%S"), status),
+            )
+            mydb.commit()
+            return True
+        except Exception as e:
+            self._db_logger.log(1, str(e))
+            return False
+        finally:
+            cur.close()
+            mydb.close()
 
     def update_temp_cards(self, args: List) -> bool:
         """

@@ -26,14 +26,14 @@ class OfflineMode(BaseModeABC):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self.r1: ReaderWiegand = r1
-        self.r2: ReaderWiegand = r2
-        self.door_unit1: DoorUnit = du1
-        self.door_unit2: DoorUnit = du2
-        self.open_btn1: Button = open_btn1
-        self.open_btn2: Button = open_btn2
-        self.mode_name: str = "OfflineMode"
-        self.sys_led.set_status("magenta", "on")
+        self._r1: ReaderWiegand = r1
+        self._r2: ReaderWiegand = r2
+        self._door_unit1: DoorUnit = du1
+        self._door_unit2: DoorUnit = du2
+        self._open_btn1: Button = open_btn1
+        self._open_btn2: Button = open_btn2
+        self._mode_name: str = "OfflineMode"
+        self._sys_led.set_status("magenta", "on")
 
     def _open_door(self, door_unit: DoorUnit) -> None:
         if door_unit.openning:
@@ -47,26 +47,24 @@ class OfflineMode(BaseModeABC):
         """
         card_id = reader.read()
         if card_id:
-            if self.db_controller.card_access_local(card_id, reader.id, dt.now()):
+            if self._db_controller.check_card_access(card_id, reader.id, dt.now()):
                 self._open_door(door_unit)
-            self.db_controller.set_val("running", f"R{reader.id}ReadCount", reader.read_count)
+                self._db_controller.insert_to_access(card_id, reader.id, dt.now(), 701)
+            else:
+                self._db_controller.insert_to_access(card_id, reader.id, dt.now(), 716)
+            self._db_controller.set_val(
+                "running", f"R{reader.id}ReadCount", reader.read_count
+            )
 
     def _initial_setup(self) -> None:
         """
         Performs initial setup tasks, such as logging start information and updating database values.
         """
-        self.logger.log(3, "Starting app...")
-        self.logger.log(3, self.mode_name)
-        self.logger.log(3, "Reading DU config from DB...")
-        self.db_controller.set_val("running", "MyID", self._mac)
-        self.logger.log(
-            3, "DoorUnit ID: " + self.db_controller.get_val("running", "MyID")
-        )
-        self.db_controller.set_val("running", "LastStart", dt.now())
-        self.db_controller.set_val("running", "R1ReadCount", self.r1.read_count)
-        self.db_controller.set_val("running", "R1ReadError", self.r1.read_err)
-        self.db_controller.set_val("running", "R2ReadCount", self.r2.read_count)
-        self.db_controller.set_val("running", "R2ReadError", self.r2.read_err)
+        self._logger.log(3, self._mode_name)
+        self._db_controller.set_val("running", "R1ReadCount", self._r1.read_count)
+        self._db_controller.set_val("running", "R1ReadError", self._r1.read_err)
+        self._db_controller.set_val("running", "R2ReadCount", self._r2.read_count)
+        self._db_controller.set_val("running", "R2ReadError", self._r2.read_err)
         time.sleep(1)
 
     def _init_threads(self) -> None:
@@ -87,12 +85,14 @@ class OfflineMode(BaseModeABC):
 
     def _thread_open_btns(self) -> None:
         while not self._stop_event.is_set():
-            if self.open_btn1.pressed():
-                if not self.door_unit1.openning:
-                    self.door_unit1.open_door()
-            if self.open_btn2.pressed():
-                if not self.door_unit2.openning:
-                    self.door_unit2.open_door()
+            if self._open_btn1.pressed():
+                if not self._door_unit1.openning:
+                    self._door_unit1.open_door()
+                    self._logger.log(3, "Open button 1 pressed")
+            if self._open_btn2.pressed():
+                if not self._door_unit2.openning:
+                    self._door_unit2.open_door()
+                    self._logger.log(3, "Open button 2 pressed")
 
     def run(self) -> int:
         """The main loop of the mode."""
@@ -105,13 +105,13 @@ class OfflineMode(BaseModeABC):
                     return 1
                 # check readers
                 self.curr_time = time.perf_counter_ns()
-                self._reader_access(self.r1, self.door_unit1)
-                self._reader_access(self.r2, self.door_unit2)
+                self._reader_access(self._r1, self._door_unit1)
+                self._reader_access(self._r2, self._door_unit2)
                 time.sleep(1)
         except Exception as e:
-            self.logger.log(1, str(e))
+            self._logger.log(1, str(e))
         finally:
             # wait for the reader to finish opening
-            while self.door_unit1.openning or self.door_unit2.openning:
+            while self._door_unit1.openning or self._door_unit2.openning:
                 time.sleep(1)
             self._stop()

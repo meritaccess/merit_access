@@ -1,7 +1,5 @@
 getmac==0.9.4
 mysql-connector-python==8.4.0
 netaddr==1.2.1
-pytest==8.2.1
-pytest-mock==3.14.0
 zeep==4.2.1
 pigpio==1.78
