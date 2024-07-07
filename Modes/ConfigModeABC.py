@@ -12,8 +12,8 @@ class ConfigModeABC(BaseModeABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._max_runtime = 30 * 60  # 30 minutes
-        self._start_time = time.time()
+        self._max_runtime: int = 30 * 60  # 30 minutes
+        self._start_time: float = time.time()
 
     def _initial_setup(self) -> None:
         self._logger.log(3, self._mode_name)

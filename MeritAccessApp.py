@@ -8,10 +8,12 @@ from datetime import datetime as dt
 
 from constants import R1_BEEP, R1_RED_LED, R1_GREEN_LED, RELAY1, R2_BEEP, R2_RED_LED
 from constants import R2_GREEN_LED, RELAY2, CONFIG_BTN, OPEN1, OPEN2, APP_PATH, AP_PASS
+from constants import MONITOR1, MONITOR2
 from HardwareComponents.LedInfo.LedInfo import LedInfo
 from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 from Logger.LoggerDB import LoggerDB
 from DataControllers.DatabaseController import DatabaseController
+from DataControllers.MQTTController import MQTTController
 from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
 from HardwareComponents.Button.Button import Button
 from Modes.OfflineMode import OfflineMode
@@ -41,6 +43,7 @@ class MeritAccessApp:
         self._wifi_controller: WifiController = self._get_wifi_controller()
         self._network_controller: NetworkController = NetworkController(self._logger)
         self._network_settings()
+        self._mqtt_controller: MQTTController = self._get_mqtt_controller()
 
         # hardware objects
         self._sys_led: LedInfo = LedInfo(pi=self._pi)
@@ -66,6 +69,12 @@ class MeritAccessApp:
         )
         self._open_btn1: Button = Button(pin=OPEN1, btn_id="OpenBtn1", pi=self._pi)
         self._open_btn2: Button = Button(pin=OPEN2, btn_id="OpenBtn2", pi=self._pi)
+        self._monitor_btn1: Button = Button(
+            pin=MONITOR1, btn_id="MonitorBtn1", pi=self._pi
+        )
+        self._monitor_btn2: Button = Button(
+            pin=MONITOR2, btn_id="MonitorBtn2", pi=self._pi
+        )
         self._config_btn: Button = Button(
             pin=CONFIG_BTN, btn_id="ConfigBtn", pi=self._pi
         )
@@ -73,7 +82,7 @@ class MeritAccessApp:
         # setup
         # 0 - cloud, 1 - offline
         self._main_mode: int = int(self._db_controller.get_val("ConfigDU", "mode"))
-        # 0 - None, 1 - ConfigModeOffline/ConfigModeOffline, 2 - ConfigModeConnect
+        # 0 - None, 1 - ConfigModeOffline/ConfigModeCloud, 2 - ConfigModeConnect
         self._config_mode: int = 0
         self._runnig_mode = None
         self._pending_reboot = False
@@ -97,7 +106,7 @@ class MeritAccessApp:
         self._check_pending_reboot()
         self._check_ip()
 
-    def _get_mac_addr(self, interface="eth0") -> str:
+    def _get_mac_addr(self, interface: str = "eth0") -> str:
         """
         Retrieves the MAC address for the specified network interface.
         """
@@ -112,6 +121,13 @@ class MeritAccessApp:
         ap_ssid = self._mac
         ap_pass = AP_PASS
         return WifiController(wifi_ssid, wifi_pass, ap_ssid, ap_pass, self._logger)
+
+    def _get_mqtt_controller(self) -> MQTTController:
+        broker = self._db_controller.get_val("ConfigDU", "mqttserver")
+        topic_root = self._db_controller.get_val("ConfigDU", "mqtttopic")
+        topic_sub = f"{topic_root}{self._mac}"
+        topic_pub = f"{topic_root}common"
+        return MQTTController(broker, topic_pub, topic_sub, self._logger)
 
     def _network_settings(self) -> None:
         """
@@ -231,6 +247,9 @@ class MeritAccessApp:
                 "du2": self._door_unit2,
                 "open_btn1": self._open_btn1,
                 "open_btn2": self._open_btn2,
+                "monitor_btn1": self._monitor_btn1,
+                "monitor_btn2": self._monitor_btn2,
+                "mqtt_controller": self._mqtt_controller,
             }
 
             while not self._exit:
@@ -273,6 +292,7 @@ class MeritAccessApp:
             self._sys_led.set_status("white", "on")
             time.sleep(1)
             self._sys_led.stop()
+            self._mqtt_controller.disconnect()
             self._logger.log(3, "Exitting app")
             self._stop()
             time.sleep(1)

@@ -18,7 +18,7 @@ class DatabaseController:
         self._db_name: str = DB_NAME
         self._db_logger: Logger = Logger()
 
-    def _connect(self):
+    def _connect(self) -> Tuple:
         """
         Establishes a connection to the database and returns both the connection and cursor objects.
         """

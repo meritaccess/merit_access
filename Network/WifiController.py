@@ -5,13 +5,19 @@ class WifiController:
     """A class to control the WiFi state on a Raspberry Pi using nmcli."""
 
     def __init__(
-        self, wifi_ssid, wifi_pass, ap_ssid, ap_pass, logger, interface="wlan0"
+        self,
+        wifi_ssid: str,
+        wifi_pass: str,
+        ap_ssid: str,
+        ap_pass: str,
+        logger: str,
+        interface: str = "wlan0",
     ) -> None:
-        self._wifi_ssid: str = wifi_ssid
-        self._wifi_pass: str = wifi_pass
-        self._ap_ssid: str = ap_ssid
-        self._ap_pass: str = ap_pass
-        self._interface: str = interface
+        self._wifi_ssid = wifi_ssid
+        self._wifi_pass = wifi_pass
+        self._ap_ssid = ap_ssid
+        self._ap_pass = ap_pass
+        self._interface = interface
         self._logger = logger
 
     def _wifi_on(self) -> None:

@@ -1,6 +1,7 @@
 import time
 from abc import ABC, abstractmethod
 import threading
+from typing import List
 
 from Logger.LoggerDB import LoggerDB
 from HardwareComponents.LedInfo.LedInfo import LedInfo
@@ -33,15 +34,15 @@ class BaseModeABC(ABC):
         self._config_btn_is_pressed: int = 0
 
         # threading
-        self._stop_event = threading.Event()
-        self._threads = []
+        self._stop_event: threading.Event = threading.Event()
+        self._threads: List = []
 
         # objects
-        self._logger: LoggerDB = logger
-        self._sys_led: LedInfo = sys_led
-        self._config_btn: Button = config_btn
-        self._db_controller: DatabaseController = db_controller
-        self._wifi_controller: WifiController = wifi_controller
+        self._logger = logger
+        self._sys_led = sys_led
+        self._config_btn = config_btn
+        self._db_controller = db_controller
+        self._wifi_controller = wifi_controller
 
     def exit(self) -> None:
         self._exit = True

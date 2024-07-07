@@ -13,12 +13,14 @@ class ConfigModeOffline(ConfigModeCloud):
 
     def __init__(self, *args, r1: ReaderWiegand, r2: ReaderWiegand, **kwargs):
         super().__init__(*args, **kwargs)
-        self._r1: ReaderWiegand = r1
-        self._r2: ReaderWiegand = r2
+        self._r1 = r1
+        self._r2 = r2
         self._mode_name: str = "ConfigModeOffline"
         self._sys_led.set_status("blue", "blink")
-        self._easy_add = bool(int(self._db_controller.get_val("ConfigDU", "easy_add")))
-        self._easy_remove = bool(
+        self._easy_add: bool = bool(
+            int(self._db_controller.get_val("ConfigDU", "easy_add"))
+        )
+        self._easy_remove: bool = bool(
             int(self._db_controller.get_val("ConfigDU", "easy_remove"))
         )
 

@@ -36,8 +36,12 @@ class CloudMode(OfflineMode):
     def _init_threads(self) -> None:
         if not self._is_thread_running("open_btns"):
             self._open_btns_check()
+        if not self._is_thread_running("monitor_btns"):
+            self._monitor_btns_check()
         if not self._is_thread_running("config_btn"):
             self._config_btn_check()
+        if not self._is_thread_running("mqtt_check") and self._mqtt_enabled:
+            self._mqtt_check()
         if not self._is_thread_running("check_ws"):
             self._check_ws(10)
         if not self._is_thread_running("update_db"):

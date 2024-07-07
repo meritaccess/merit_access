@@ -1,11 +1,12 @@
 import subprocess
 from netaddr import IPNetwork
+from Logger.LoggerDB import LoggerDB
 
 
 class NetworkController:
-    def __init__(self, logger) -> None:
-        self._interface = None
-        self._connection = None
+    def __init__(self, logger: LoggerDB) -> None:
+        self._interface: str = None
+        self._connection: str = None
         self._logger = logger
 
     def get_ip_address(self) -> str:
@@ -23,15 +24,15 @@ class NetworkController:
             print(
                 f"Error getting IP address for {self._interface}: {result.stderr.strip()}"
             )
-            return None
+            return ""
         except subprocess.CalledProcessError as e:
             err = "Error getting IP address for {self._interface}: {e.stderr.strip()}"
             self._logger.log(1, err)
-            return None
+            return ""
         except Exception as e:
             err = f"Unexpected error: {e}"
             self._logger.log(1, err)
-            return None
+            return ""
 
     def _get_connection_name(self) -> str:
         """Retrieves the connection name for the specified interface."""
@@ -57,7 +58,7 @@ class NetworkController:
             self._logger.log(1, err)
             return ""
 
-    def set_interface(self, interface) -> None:
+    def set_interface(self, interface: str) -> None:
         self._interface = interface
         self._connection = self._get_connection_name()
 
@@ -73,7 +74,7 @@ class NetworkController:
             err = f"Unexpected error: {e}"
             self._logger.log(1, err)
 
-    def set_static_ip(self, ip, subnet_mask, gateway, dns) -> None:
+    def set_static_ip(self, ip: str, subnet_mask: str, gateway: str, dns: str) -> None:
         """Sets a static IP address with the given subnet mask, gateway, and DNS."""
         try:
             # Convert subnet mask to CIDR notation

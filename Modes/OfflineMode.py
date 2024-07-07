@@ -6,6 +6,8 @@ from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
 from Modes.BaseModeABC import BaseModeABC
 from HardwareComponents.Button.Button import Button
+from DataControllers.MQTTController import MQTTController
+from CommandParser.CommandParser import CommandParser
 
 
 class OfflineMode(BaseModeABC):
@@ -23,17 +25,26 @@ class OfflineMode(BaseModeABC):
         du2: DoorUnit,
         open_btn1: Button,
         open_btn2: Button,
+        monitor_btn1: Button,
+        monitor_btn2: Button,
+        mqtt_controller: MQTTController,
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-        self._r1: ReaderWiegand = r1
-        self._r2: ReaderWiegand = r2
-        self._door_unit1: DoorUnit = du1
-        self._door_unit2: DoorUnit = du2
-        self._open_btn1: Button = open_btn1
-        self._open_btn2: Button = open_btn2
+        self._r1 = r1
+        self._r2 = r2
+        self._door_unit1 = du1
+        self._door_unit2 = du2
+        self._open_btn1 = open_btn1
+        self._open_btn2 = open_btn2
+        self._monitor_btn1 = monitor_btn1
+        self._monitor_btn2 = monitor_btn2
+        self._mqtt_controller = mqtt_controller
         self._mode_name: str = "OfflineMode"
         self._sys_led.set_status("magenta", "on")
+        self._mqtt_enabled = bool(
+            int(self._db_controller.get_val("ConfigDU", "mqttenabled"))
+        )
 
     def _open_door(self, door_unit: DoorUnit) -> None:
         if door_unit.openning:
@@ -70,8 +81,12 @@ class OfflineMode(BaseModeABC):
     def _init_threads(self) -> None:
         if not self._is_thread_running("open_btns"):
             self._open_btns_check()
+        if not self._is_thread_running("monitor_btns"):
+            self._monitor_btns_check()
         if not self._is_thread_running("config_btn"):
             self._config_btn_check()
+        if not self._is_thread_running("mqtt_check") and self._mqtt_enabled:
+            self._mqtt_check()
 
     def _open_btns_check(self) -> None:
         """
@@ -93,6 +108,48 @@ class OfflineMode(BaseModeABC):
                 if not self._door_unit2.openning:
                     self._door_unit2.open_door()
                     self._logger.log(3, "Open button 2 pressed")
+
+    def _monitor_btns_check(self) -> None:
+        """
+        Checks if monitor buttons are pressed and toggles monitor flag
+        """
+        t = threading.Thread(
+            target=self._thread_monitor_btns, daemon=True, name="monitor_btns"
+        )
+        self._threads.append(t)
+        t.start()
+
+    def _thread_monitor_btns(self) -> None:
+        while not self._stop_event.is_set():
+            if self._monitor_btn1.pressed():
+                self._door_unit1.monitor = not self._door_unit1.monitor
+            if self._monitor_btn2.pressed():
+                self._door_unit2.monitor = not self._door_unit2.monitor
+
+    def _mqtt_check(self) -> None:
+        t = threading.Thread(
+            target=self._thread_mqtt_check, daemon=True, name="mqtt_check"
+        )
+        self._threads.append(t)
+        t.start()
+
+    def _thread_mqtt_check(self) -> None:
+        command_parser = CommandParser(
+            self._door_unit1, self._door_unit2, self._db_controller, self._mac, self._logger
+        )
+        self._mqtt_controller.clear_queue()
+        while not self._stop_event.is_set():
+            if self._mqtt_controller.is_connected():
+                msg = self._mqtt_controller.get_msg()
+                if msg:
+                    print(msg)
+                    response = command_parser.parse_command(msg)
+                    if response:
+                        self._mqtt_controller.publish(response)
+
+            else:
+                self._mqtt_controller.clear_queue()
+                self._mqtt_controller.connect()
 
     def run(self) -> int:
         """The main loop of the mode."""
