@@ -1,3 +1,3 @@
 # Merit Access
 Official release
-version: 1.0.7
+version: 1.0.8
