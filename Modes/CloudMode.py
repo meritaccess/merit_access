@@ -68,6 +68,7 @@ class CloudMode(OfflineMode):
             self._db_controller.set_val(
                 "running", f"R{reader.id}ReadCount", reader.read_count
             )
+            self._mqtt_card_read(card_id, reader.id)
 
     def _check_ws(self, time_period: int) -> None:
         t = threading.Thread(

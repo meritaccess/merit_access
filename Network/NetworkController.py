@@ -62,6 +62,9 @@ class NetworkController:
         self._interface = interface
         self._connection = self._get_connection_name()
 
+    def get_interface(self) -> str:
+        return self._interface
+
     def reset_connection(self) -> None:
         try:
             args = ["sudo", "nmcli", "con"]

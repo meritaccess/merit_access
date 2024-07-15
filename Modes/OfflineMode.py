@@ -1,6 +1,7 @@
 import time
 from datetime import datetime as dt
 import threading
+from queue import Queue
 
 from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
@@ -66,6 +67,7 @@ class OfflineMode(BaseModeABC):
             self._db_controller.set_val(
                 "running", f"R{reader.id}ReadCount", reader.read_count
             )
+            self._mqtt_card_read(card_id, reader.id)
 
     def _initial_setup(self) -> None:
         """
@@ -135,7 +137,11 @@ class OfflineMode(BaseModeABC):
 
     def _thread_mqtt_check(self) -> None:
         command_parser = CommandParser(
-            self._door_unit1, self._door_unit2, self._db_controller, self._mac, self._logger
+            self._door_unit1,
+            self._door_unit2,
+            self._db_controller,
+            self._mac,
+            self._logger,
         )
         self._mqtt_controller.clear_queue()
         while not self._stop_event.is_set():
@@ -150,6 +156,12 @@ class OfflineMode(BaseModeABC):
             else:
                 self._mqtt_controller.clear_queue()
                 self._mqtt_controller.connect()
+
+    def _mqtt_card_read(self, card_id: str, reader_id: int) -> None:
+        if self._mqtt_enabled:
+            msg = f"{self._mac}|{card_id}*{reader_id}"
+            print(msg)
+            self._mqtt_controller.publish(msg)
 
     def run(self) -> int:
         """The main loop of the mode."""

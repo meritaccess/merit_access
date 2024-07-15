@@ -1,6 +1,7 @@
 import paho.mqtt.client as mqtt
 from queue import Queue
 from Logger.LoggerDB import LoggerDB
+import time
 
 
 class MQTTController:
@@ -22,6 +23,8 @@ class MQTTController:
         self._msg_queue: Queue = Queue()
         self._keep_alive = keep_alive
         self._callbacks()
+        self._log_connect_timeout = 180
+        self._last_update = time.time()
 
     def _callbacks(self) -> None:
         try:
@@ -39,9 +42,11 @@ class MQTTController:
             text = f"Connected to broker {self._broker} on port {self._port}"
             self._logger.log(3, text)
         except Exception as e:
-            text = f"Failed to connect to broker: {e}"
-            print(text)
-            self._logger.log(1, text)
+            if time.time() - self._log_connect_timeout > self._last_update:
+                self._last_update = time.time()
+                text = f"Failed to connect to broker: {e}"
+                print(text)
+                self._logger.log(1, text)
 
     def _on_connect(self, client, userdata, flags, rc) -> None:
         print(f"Connected with result code {rc}")

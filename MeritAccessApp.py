@@ -39,7 +39,6 @@ class MeritAccessApp:
         # software objects
         self._db_controller: DatabaseController = DatabaseController()
         self._logger: LoggerDB = LoggerDB(db_controller=self._db_controller)
-        self._logger.log(3, f"Starting app...")
         self._wifi_controller: WifiController = self._get_wifi_controller()
         self._network_controller: NetworkController = NetworkController(self._logger)
         self._network_settings()
@@ -94,11 +93,11 @@ class MeritAccessApp:
         self._run_all_checks()
 
     def _initial_setup(self) -> None:
-        self._logger.log(3, "Reading DU config from DB...")
-        self._db_controller.set_val("running", "MyID", self._mac)
         self._logger.log(
-            3, "DoorUnit ID: " + self._db_controller.get_val("running", "MyID")
+            2,
+            f"Starting Unit: {self._mac}, IP(interface={self._network_controller.get_interface()}): {self._network_controller.get_ip_address()}",
         )
+        self._db_controller.set_val("running", "MyID", self._mac)
         self._db_controller.set_val("running", "LastStart", dt.now())
 
     def _run_all_checks(self) -> None:
@@ -153,7 +152,6 @@ class MeritAccessApp:
             interface = "eth0"
             if self._wifi_controller.check_wifi_connection():
                 self._wifi_controller.wifi_disconnect()
-        self._logger.log(3, f"Interface: {interface}")
         self._network_controller.set_interface(interface)
 
     def _check_version(self) -> None:
@@ -293,7 +291,10 @@ class MeritAccessApp:
             time.sleep(1)
             self._sys_led.stop()
             self._mqtt_controller.disconnect()
-            self._logger.log(3, "Exitting app")
+            self._logger.log(
+                2,
+                f"Exiting Unit: {self._mac}",
+            )
             self._stop()
             time.sleep(1)
             self._check_reboot()

@@ -76,16 +76,16 @@ class CommandParser:
     def _C17(self, command: str = "") -> str:
         monitor = self._door_unit1.monitor
         if monitor:
-            return f"X55|{self._mac}|Monitor1:On\n"
+            return f"X55|{self._mac}|Magnet1:On\n"
         else:
-            return f"X55|{self._mac}|Monitor1:Off\n"
+            return f"X55|{self._mac}|Magnet1:Off\n"
 
     def _C18(self, comman: str = "") -> str:
         monitor = self._door_unit2.monitor
         if monitor:
-            return f"X55|{self._mac}|Monitor2:On\n"
+            return f"X55|{self._mac}|Magnet2:On\n"
         else:
-            return f"X55|{self._mac}|Monitor2:Off\n"
+            return f"X55|{self._mac}|Magnet2:Off\n"
 
     def _C19(self, command: str = "") -> str:
         if self._door_unit1.permanent_open:

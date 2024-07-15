@@ -220,9 +220,11 @@ class WifiController:
             )
             active_connections = result.stdout.strip().split("\n")
             for connection in active_connections:
-                active, conn_type, device = connection.strip().split(":")
-                if active == "yes" and device == "wlan0":
-                    return True
+                parts = connection.strip().split(":")
+                if len(parts) == 3:
+                    active, conn_type, device = parts
+                    if active == "yes" and device == "wlan0":
+                        return True
             return False
         except subprocess.CalledProcessError as e:
             print(f"Failed to check Wi-Fi connection: {e}")
