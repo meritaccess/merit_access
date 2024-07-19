@@ -1,7 +1,6 @@
 import time
 from datetime import datetime as dt
 import threading
-from queue import Queue
 
 from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
@@ -9,6 +8,8 @@ from Modes.BaseModeABC import BaseModeABC
 from HardwareComponents.Button.Button import Button
 from DataControllers.MQTTController import MQTTController
 from CommandParser.CommandParser import CommandParser
+from Logger import log
+from constants import MAC
 
 
 class OfflineMode(BaseModeABC):
@@ -73,7 +74,7 @@ class OfflineMode(BaseModeABC):
         """
         Performs initial setup tasks, such as logging start information and updating database values.
         """
-        self._logger.log(3, self._mode_name)
+        log(20, self._mode_name)
         self._db_controller.set_val("running", "R1ReadCount", self._r1.read_count)
         self._db_controller.set_val("running", "R1ReadError", self._r1.read_err)
         self._db_controller.set_val("running", "R2ReadCount", self._r2.read_count)
@@ -105,11 +106,11 @@ class OfflineMode(BaseModeABC):
             if self._open_btn1.pressed():
                 if not self._door_unit1.openning:
                     self._door_unit1.open_door()
-                    self._logger.log(3, "Open button 1 pressed")
+                    log(20, "Open button 1 pressed")
             if self._open_btn2.pressed():
                 if not self._door_unit2.openning:
                     self._door_unit2.open_door()
-                    self._logger.log(3, "Open button 2 pressed")
+                    log(20, "Open button 2 pressed")
 
     def _monitor_btns_check(self) -> None:
         """
@@ -136,13 +137,7 @@ class OfflineMode(BaseModeABC):
         t.start()
 
     def _thread_mqtt_check(self) -> None:
-        command_parser = CommandParser(
-            self._door_unit1,
-            self._door_unit2,
-            self._db_controller,
-            self._mac,
-            self._logger,
-        )
+        command_parser = CommandParser(self._door_unit1, self._door_unit2)
         self._mqtt_controller.clear_queue()
         while not self._stop_event.is_set():
             if self._mqtt_controller.is_connected():
@@ -159,7 +154,7 @@ class OfflineMode(BaseModeABC):
 
     def _mqtt_card_read(self, card_id: str, reader_id: int) -> None:
         if self._mqtt_enabled:
-            msg = f"{self._mac}|{card_id}*{reader_id}"
+            msg = f"{MAC}|{card_id}*{reader_id}"
             print(msg)
             self._mqtt_controller.publish(msg)
 
@@ -178,7 +173,7 @@ class OfflineMode(BaseModeABC):
                 self._reader_access(self._r2, self._door_unit2)
                 time.sleep(1)
         except Exception as e:
-            self._logger.log(1, str(e))
+            log(40, str(e))
         finally:
             # wait for the reader to finish opening
             while self._door_unit1.openning or self._door_unit2.openning:

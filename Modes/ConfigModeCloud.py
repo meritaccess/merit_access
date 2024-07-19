@@ -2,6 +2,7 @@ import time
 from datetime import datetime as dt
 
 from Modes.ConfigModeABC import ConfigModeABC
+from Logger import log
 
 
 class ConfigModeCloud(ConfigModeABC):
@@ -34,7 +35,7 @@ class ConfigModeCloud(ConfigModeABC):
                 time.sleep(1)
             return 0
         except Exception as e:
-            self._logger.log(1, str(e))
+            log(40, str(e))
         finally:
             self._wifi_controller.ap_off()
             self._stop()

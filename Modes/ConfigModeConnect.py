@@ -3,6 +3,7 @@ from datetime import datetime as dt
 
 from Modes.ConfigModeABC import ConfigModeABC
 from GeneratorID.GeneratorID import GeneratorID
+from Logger import log
 
 
 class ConfigModeConnect(ConfigModeABC):
@@ -33,6 +34,6 @@ class ConfigModeConnect(ConfigModeABC):
                 time.sleep(1)
             return 0
         except Exception as e:
-            self._logger.log(1, str(e))
+            log(40, str(e))
         finally:
             self._stop()

@@ -2,16 +2,15 @@ import pigpio
 import time
 import subprocess
 import os
-from getmac import get_mac_address
 import threading
 from datetime import datetime as dt
+from typing import Any
 
 from constants import R1_BEEP, R1_RED_LED, R1_GREEN_LED, RELAY1, R2_BEEP, R2_RED_LED
 from constants import R2_GREEN_LED, RELAY2, CONFIG_BTN, OPEN1, OPEN2, APP_PATH, AP_PASS
-from constants import MONITOR1, MONITOR2
+from constants import MONITOR1, MONITOR2, MAC
 from HardwareComponents.LedInfo.LedInfo import LedInfo
 from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
-from Logger.LoggerDB import LoggerDB
 from DataControllers.DatabaseController import DatabaseController
 from DataControllers.MQTTController import MQTTController
 from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
@@ -23,6 +22,7 @@ from Network.NetworkController import NetworkController
 from Modes.ConfigModeOffline import ConfigModeOffline
 from Modes.ConfigModeCloud import ConfigModeCloud
 from Modes.ConfigModeConnect import ConfigModeConnect
+from Logger import log
 
 
 class MeritAccessApp:
@@ -34,13 +34,11 @@ class MeritAccessApp:
 
     def __init__(self) -> None:
         self._pi = pigpio.pi()
-        self._mac: str = self._get_mac_addr()
 
         # software objects
         self._db_controller: DatabaseController = DatabaseController()
-        self._logger: LoggerDB = LoggerDB(db_controller=self._db_controller)
         self._wifi_controller: WifiController = self._get_wifi_controller()
-        self._network_controller: NetworkController = NetworkController(self._logger)
+        self._network_controller: NetworkController = NetworkController()
         self._network_settings()
         self._mqtt_controller: MQTTController = self._get_mqtt_controller()
 
@@ -93,11 +91,9 @@ class MeritAccessApp:
         self._run_all_checks()
 
     def _initial_setup(self) -> None:
-        self._logger.log(
-            2,
-            f"Starting Unit: {self._mac}, IP(interface={self._network_controller.get_interface()}): {self._network_controller.get_ip_address()}",
-        )
-        self._db_controller.set_val("running", "MyID", self._mac)
+        text = f"Starting Unit: {MAC}, IP(interface={self._network_controller.get_interface()}): {self._network_controller.get_ip_address()}"
+        log(20, text)
+        self._db_controller.set_val("running", "MyID", MAC)
         self._db_controller.set_val("running", "LastStart", dt.now())
 
     def _run_all_checks(self) -> None:
@@ -105,28 +101,19 @@ class MeritAccessApp:
         self._check_pending_reboot()
         self._check_ip()
 
-    def _get_mac_addr(self, interface: str = "eth0") -> str:
-        """
-        Retrieves the MAC address for the specified network interface.
-        """
-        eth_mac = get_mac_address(interface=interface)
-        mac = "MDU" + eth_mac.replace(":", "")
-        mac = mac.upper()
-        return mac
-
     def _get_wifi_controller(self) -> WifiController:
         wifi_ssid = self._db_controller.get_val("ConfigDU", "ssid")
         wifi_pass = self._db_controller.get_val("ConfigDU", "wifipass")
-        ap_ssid = self._mac
+        ap_ssid = MAC
         ap_pass = AP_PASS
-        return WifiController(wifi_ssid, wifi_pass, ap_ssid, ap_pass, self._logger)
+        return WifiController(wifi_ssid, wifi_pass, ap_ssid, ap_pass)
 
     def _get_mqtt_controller(self) -> MQTTController:
         broker = self._db_controller.get_val("ConfigDU", "mqttserver")
         topic_root = self._db_controller.get_val("ConfigDU", "mqtttopic")
-        topic_sub = f"{topic_root}{self._mac}"
+        topic_sub = f"{topic_root}{MAC}"
         topic_pub = f"{topic_root}common"
-        return MQTTController(broker, topic_pub, topic_sub, self._logger)
+        return MQTTController(broker, topic_pub, topic_sub)
 
     def _network_settings(self) -> None:
         """
@@ -216,11 +203,12 @@ class MeritAccessApp:
     def _check_reboot(self) -> None:
         if self._pending_reboot:
             try:
-                self._logger.log(2, "Scheduled system reboot due to setting changes")
+                text = "Scheduled system reboot due to setting changes"
+                log(20, text)
                 subprocess.run(["sudo", "reboot"], check=True)
             except subprocess.CalledProcessError as e:
                 err = f"Error: {e}"
-                self._logger.log(1, err)
+                log(40, err)
 
     def run(self) -> None:
         """
@@ -231,8 +219,6 @@ class MeritAccessApp:
         self._initial_setup()
         try:
             args_base = [
-                self._mac,
-                self._logger,
                 self._sys_led,
                 self._config_btn,
                 self._db_controller,
@@ -282,7 +268,7 @@ class MeritAccessApp:
         except KeyboardInterrupt:
             print("Ending by keyboard request")
         except Exception as e:
-            self._logger.log(1, str(e))
+            log(40, str(e))
         finally:
             # wait for the reader to finish opening
             while self._door_unit1.openning or self._door_unit2.openning:
@@ -291,10 +277,7 @@ class MeritAccessApp:
             time.sleep(1)
             self._sys_led.stop()
             self._mqtt_controller.disconnect()
-            self._logger.log(
-                2,
-                f"Exiting Unit: {self._mac}",
-            )
+            log(20, f"Stopping Unit {MAC}")
             self._stop()
             time.sleep(1)
             self._check_reboot()

@@ -1,13 +1,13 @@
 import subprocess
 from netaddr import IPNetwork
-from Logger.LoggerDB import LoggerDB
+
+from Logger import log
 
 
 class NetworkController:
-    def __init__(self, logger: LoggerDB) -> None:
+    def __init__(self) -> None:
         self._interface: str = None
         self._connection: str = None
-        self._logger = logger
 
     def get_ip_address(self) -> str:
         try:
@@ -27,11 +27,11 @@ class NetworkController:
             return ""
         except subprocess.CalledProcessError as e:
             err = "Error getting IP address for {self._interface}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
             return ""
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
             return ""
 
     def _get_connection_name(self) -> str:
@@ -51,11 +51,11 @@ class NetworkController:
             print(f"No connection found for interface {self._interface}.")
         except subprocess.CalledProcessError as e:
             err = f"Failed to retrieve connection names: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
             return ""
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
             return ""
 
     def set_interface(self, interface: str) -> None:
@@ -72,10 +72,10 @@ class NetworkController:
             subprocess.run(args + ["up", self._connection], check=True)
         except subprocess.CalledProcessError as e:
             err = f"Failed to reset connection: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def set_static_ip(self, ip: str, subnet_mask: str, gateway: str, dns: str) -> None:
         """Sets a static IP address with the given subnet mask, gateway, and DNS."""
@@ -90,13 +90,13 @@ class NetworkController:
             subprocess.run(args + ["ipv4.method", "manual"], check=True)
             self.reset_connection()
             text = f"Static IP {ip} set successfully on {self._connection}."
-            self._logger.log(3, text)
+            log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Failed to set static IP: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def set_dhcp(self) -> None:
         """Enables DHCP for the specified interface."""
@@ -107,13 +107,13 @@ class NetworkController:
             subprocess.run(args + ["ipv4.address", ""], check=True)
             self.reset_connection()
             text = f"DHCP enabled successfully on {self._connection}."
-            self._logger.log(3, text)
+            log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Failed to enable DHCP: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def __str__(self) -> str:
         return "Network Controller"

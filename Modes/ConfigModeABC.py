@@ -2,6 +2,7 @@ import time
 from datetime import datetime as dt
 
 from Modes.BaseModeABC import BaseModeABC
+from Logger import log
 
 
 class ConfigModeABC(BaseModeABC):
@@ -16,7 +17,7 @@ class ConfigModeABC(BaseModeABC):
         self._start_time: float = time.time()
 
     def _initial_setup(self) -> None:
-        self._logger.log(3, self._mode_name)
+        log(20, self._mode_name)
 
     def _wifi_setup(self) -> None:
         self._wifi_controller.ap_on()

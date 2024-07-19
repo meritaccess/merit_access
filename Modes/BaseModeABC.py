@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 import threading
 from typing import List
 
-from Logger.LoggerDB import LoggerDB
 from HardwareComponents.LedInfo.LedInfo import LedInfo
 from HardwareComponents.Button.Button import Button
 from DataControllers.DatabaseController import DatabaseController
@@ -18,8 +17,6 @@ class BaseModeABC(ABC):
 
     def __init__(
         self,
-        mac: str,
-        logger: LoggerDB,
         sys_led: LedInfo,
         config_btn: Button,
         db_controller: DatabaseController,
@@ -27,7 +24,6 @@ class BaseModeABC(ABC):
     ) -> None:
 
         self._mode_name: str = "BaseMode"
-        self._mac: str = mac
         self._exit: bool = False
 
         # 0 - Not pressed, 1 - short press, 2 - long press
@@ -38,7 +34,6 @@ class BaseModeABC(ABC):
         self._threads: List = []
 
         # objects
-        self._logger = logger
         self._sys_led = sys_led
         self._config_btn = config_btn
         self._db_controller = db_controller

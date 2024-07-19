@@ -1,5 +1,7 @@
 import subprocess
 
+from Logger import log
+
 
 class WifiController:
     """A class to control the WiFi state on a Raspberry Pi using nmcli."""
@@ -10,7 +12,6 @@ class WifiController:
         wifi_pass: str,
         ap_ssid: str,
         ap_pass: str,
-        logger: str,
         interface: str = "wlan0",
     ) -> None:
         self._wifi_ssid = wifi_ssid
@@ -18,7 +19,6 @@ class WifiController:
         self._ap_ssid = ap_ssid
         self._ap_pass = ap_pass
         self._interface = interface
-        self._logger = logger
 
     def _wifi_on(self) -> None:
         try:
@@ -26,10 +26,10 @@ class WifiController:
             print(f"WiFi {self._interface} turned on.")
         except subprocess.CalledProcessError as e:
             err = f"Error turning on WiFi for {self._interface}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def _wifi_off(self) -> None:
         try:
@@ -37,10 +37,10 @@ class WifiController:
             print(f"WiFi {self._interface} turned off.")
         except subprocess.CalledProcessError as e:
             err = f"Error turning off WiFi for {self._interface}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def wifi_connect(self) -> None:
         try:
@@ -63,15 +63,15 @@ class WifiController:
             if self.check_connection():
                 text = f"Connected to WiFi {self._wifi_ssid}."
                 print(text)
-                self._logger.log(3, text)
+                log(20, text)
             else:
                 print(f"Failed to connect to WiFi {self._wifi_ssid}.")
         except subprocess.CalledProcessError as e:
             err = f"Error connecting to WiFi {self._wifi_ssid}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def wifi_disconnect(self) -> None:
         try:
@@ -82,13 +82,13 @@ class WifiController:
             if not self.check_connection():
                 text = f"Disconnected from WiFi {self._wifi_ssid}."
                 print(text)
-                self._logger.log(3, text)
+                log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Error disconnecting from WiFi {self._wifi_ssid}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def ap_on(self) -> None:
         """
@@ -127,13 +127,13 @@ class WifiController:
             subprocess.run(args + ["up", "Hotspot"], check=True)
             text = f"Access Point {self._ap_ssid} turned on."
             print(text)
-            self._logger.log(3, text)
+            log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Error turning on Access Point {self._ap_ssid}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def ap_off(self) -> None:
         try:
@@ -142,13 +142,13 @@ class WifiController:
             )
             text = f"Access Point {self._ap_ssid} turned off."
             print(text)
-            self._logger.log(3, text)
+            log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Error turning off Access Point {self._ap_ssid}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
 
     def check_connection(self) -> bool:
         try:
@@ -160,11 +160,11 @@ class WifiController:
             return False
         except subprocess.CalledProcessError as e:
             err = f"Error checking connection for {self._interface}: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
             return False
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
             return False
 
     def check_wifi_status(self) -> bool:
@@ -179,11 +179,11 @@ class WifiController:
             err = (
                 f"Error checking WiFi status for {self._interface}: {e.stderr.strip()}"
             )
-            self._logger.log(1, err)
+            log(40, err)
             return False
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
             return False
 
     def _get_devices(self) -> str:
@@ -196,11 +196,11 @@ class WifiController:
             )
         except subprocess.CalledProcessError as e:
             err = f"Error getting devices: {e.stderr.strip()}"
-            self._logger.log(1, err)
+            log(40, err)
             return ""
         except Exception as e:
             err = f"Unexpected error: {e}"
-            self._logger.log(1, err)
+            log(40, err)
             return ""
 
     def check_wifi_connection(self):

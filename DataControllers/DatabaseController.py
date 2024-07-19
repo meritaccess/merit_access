@@ -2,8 +2,8 @@ from datetime import datetime
 from typing import Tuple, Any, List
 import mysql.connector
 
-from Logger.Logger import Logger
-from constants import DB_HOST, DB_PASS, DB_USER, DB_NAME
+from Logger import log
+from constants import DB_HOST, DB_USER, DB_PASS, DB_NAME
 
 
 class DatabaseController:
@@ -11,12 +11,17 @@ class DatabaseController:
     Handles database operations such as connecting to the database, reading, and writing data.
     """
 
-    def __init__(self) -> None:
-        self._db_host: str = DB_HOST
-        self._db_user: str = DB_USER
-        self._db_pass: str = DB_PASS
-        self._db_name: str = DB_NAME
-        self._db_logger: Logger = Logger()
+    def __init__(
+        self,
+        host: str = DB_HOST,
+        user: str = DB_USER,
+        passwd: str = DB_PASS,
+        name: str = DB_NAME,
+    ) -> None:
+        self._db_host = host
+        self._db_user = user
+        self._db_pass = passwd
+        self._db_name = name
 
     def _connect(self) -> Tuple:
         """
@@ -32,7 +37,7 @@ class DatabaseController:
             cur = mydb.cursor()
             return (mydb, cur)
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error connecting to database: {str(e)}")
 
     def get_val(self, table: str, prop: str) -> str:
         """
@@ -51,8 +56,11 @@ class DatabaseController:
                 return ""
             return rows[0]
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error getting value from database: {str(e)}")
             return ""
+        finally:
+            cur.close()
+            mydb.close()
 
     def set_val(self, table: str, prop: str, value: Any) -> bool:
         """
@@ -88,8 +96,11 @@ class DatabaseController:
             mydb.close()
             return True
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error setting value in database: {str(e)}")
             return False
+        finally:
+            cur.close()
+            mydb.close()
 
     def remove_access(self, card: str, reader: str) -> bool:
         """
@@ -106,8 +117,11 @@ class DatabaseController:
             mydb.close()
             return True
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error removing access from database: {str(e)}")
             return False
+        finally:
+            cur.close()
+            mydb.close()
 
     def grant_access(self, args: List) -> bool:
         """
@@ -124,8 +138,11 @@ class DatabaseController:
             mydb.close()
             return True
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error granting access in database: {str(e)}")
             return False
+        finally:
+            cur.close()
+            mydb.close()
 
     def check_card_access(
         self, card: str, reader: str, time: datetime, state=10
@@ -142,7 +159,7 @@ class DatabaseController:
             access_allowed = cur.fetchone()[0]
             return access_allowed > 0
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error checking card access in database: {str(e)}")
             return False
         finally:
             cur.close()
@@ -164,7 +181,7 @@ class DatabaseController:
             mydb.commit()
             return True
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error inserting access into database: {str(e)}")
             return False
         finally:
             cur.close()
@@ -188,8 +205,11 @@ class DatabaseController:
             mydb.close()
             return True
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error updating temporary cards in database: {str(e)}")
             return False
+        finally:
+            cur.close()
+            mydb.close()
 
     def activate_temp_cards(self) -> bool:
         """
@@ -203,27 +223,11 @@ class DatabaseController:
             mydb.close()
             return True
         except Exception as e:
-            self._db_logger.log(1, str(e))
+            log(40, f"Error activating temporary cards in database: {str(e)}")
             return False
-
-    def add_log(self, severity: int, content: Any) -> bool:
-        """
-        Adds a log entry to the database.
-        """
-        mydb, cur = self._connect()
-        try:
-            arg = (severity, content)
-            cur.execute(
-                """INSERT INTO `logs` (`severity`, `message`) VALUES (%s, %s);""",
-                arg,
-            )
-            mydb.commit()
+        finally:
             cur.close()
             mydb.close()
-            return True
-        except Exception as e:
-            self._db_logger.log(1, str(e))
-            return False
 
     def __str__(self) -> str:
         return "Database Controller"

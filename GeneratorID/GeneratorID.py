@@ -2,12 +2,9 @@ import hashlib
 import platform
 import subprocess
 
-from Logger.Logger import Logger
-
 
 class GeneratorID:
     def __init__(self):
-        self._logger = Logger()
         self._serial_numbers = (
             self._get_cpu_serial(),
             self._get_disk_serial(),
@@ -22,7 +19,7 @@ class GeneratorID:
             else:
                 serial = ""
         except Exception as e:
-            self._logger.log(1, e)
+            pass
         return serial
 
     def _get_disk_serial(self) -> str:
@@ -38,7 +35,7 @@ class GeneratorID:
             else:
                 serial = ""
         except Exception as e:
-            self._logger.log(1, e)
+            pass
         return serial
 
     def _get_network_card_serial(self) -> str:
@@ -50,7 +47,7 @@ class GeneratorID:
             else:
                 serial = ""
         except Exception as e:
-            self._logger.log(1, e)
+            pass
         return serial
 
     def _check_serial_numbers(self) -> bool:
@@ -69,4 +66,4 @@ class GeneratorID:
             return unique_id
 
         except Exception as e:
-            self._logger.log(1, e)
+            pass

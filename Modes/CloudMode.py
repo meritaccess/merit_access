@@ -6,6 +6,7 @@ from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 from DataControllers.WebServicesController import WebServicesController
 from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
 from Modes.OfflineMode import OfflineMode
+from Logger import log
 
 
 class CloudMode(OfflineMode):
@@ -18,12 +19,10 @@ class CloudMode(OfflineMode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._update: bool = False
-        self._ws_controller = WebServicesController(
-            mac=self._mac, db_controller=self._db_controller
-        )
+        self._ws_controller = WebServicesController(db_controller=self._db_controller)
         self._mode_name: str = "CloudMode"
         self._ws_ready: bool = self._ws_controller.check_connection()
-        self._logger.log(3, f"WS Ready: {self._ws_ready}")
+        log(20, f"WS Ready: {self._ws_ready}")
         self._set_sys_led()
         self._ws_controller.load_all_cards_from_ws()
 
@@ -90,7 +89,7 @@ class CloudMode(OfflineMode):
                 self._ws_ready = self._ws_controller.check_connection()
                 self._set_sys_led()
                 if ws_ready_old != self._ws_ready:
-                    self._logger.log(2, f"WS Ready: {self._ws_ready}")
+                    log(20, f"WS Ready: {self._ws_ready}")
                     ws_ready_old = self._ws_ready
                 print(f"WS Ready: {self._ws_ready}")
             time.sleep(1)

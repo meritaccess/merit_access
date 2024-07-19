@@ -3,6 +3,7 @@ from datetime import datetime as dt
 
 from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
 from Modes.ConfigModeCloud import ConfigModeCloud
+from Logger import log
 
 
 class ConfigModeOffline(ConfigModeCloud):
@@ -77,7 +78,7 @@ class ConfigModeOffline(ConfigModeCloud):
                 time.sleep(1)
             return 0
         except Exception as e:
-            self._logger.log(1, str(e))
+            log(40, str(e))
         finally:
             self._wifi_controller.ap_off()
             self._stop()
