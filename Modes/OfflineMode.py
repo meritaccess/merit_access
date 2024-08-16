@@ -129,8 +129,8 @@ class OfflineMode(BaseModeABC):
         Thread function to periodically (every started minute) check system time plans and update actions.
         """
         last_minute = dt.now().minute
-        sys_tplan_r1 = int(self._db_controller.get_val("ConfigDU", "sysPlanReader1"))
-        sys_tplan_r2 = int(self._db_controller.get_val("ConfigDU", "sysPlanReader2"))
+        sys_tplan_r1 = int(self._db_controller.get_val("ConfigDU", "SYSPLANREADER1"))
+        sys_tplan_r2 = int(self._db_controller.get_val("ConfigDU", "SYSPLANREADER2"))
         self._sys_action1 = self._tplan_controller.get_action(sys_tplan_r1)
         self._sys_action2 = self._tplan_controller.get_action(sys_tplan_r2)
         while not self._stop_event.is_set():
