@@ -2,10 +2,9 @@ import time
 from datetime import datetime as dt
 import threading
 
-from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
-from DataControllers.WebServicesController import WebServicesController
-from HardwareComponents.DoorUnit.DoorUnit import DoorUnit
-from Modes.OfflineMode import OfflineMode
+from HardwareComponents import ReaderWiegand, DoorUnit
+from DataControllers import WebServicesController
+from .OfflineMode import OfflineMode
 from Logger import log
 
 
@@ -20,19 +19,35 @@ class CloudMode(OfflineMode):
         super().__init__(*args, **kwargs)
         self._update: bool = False
         self._ws_controller = WebServicesController(db_controller=self._db_controller)
-        self._mode_name: str = "CloudMode"
         self._ws_ready: bool = self._ws_controller.check_connection()
         log(20, f"WS Ready: {self._ws_ready}")
-        self._set_sys_led()
         self._ws_controller.load_all_cards_from_ws()
 
+    def _initial_setup(self) -> None:
+        """
+        Performs initial setup tasks, such as logging start information and updating database values.
+        """
+        self._mode_name: str = "CloudMode"
+        self._sys_led.set_status("yellow", "on")
+        self._get_tplans()
+        log(20, self._mode_name)
+        self._db_controller.set_val("running", "R1ReadCount", self._r1.read_count)
+        self._db_controller.set_val("running", "R2ReadCount", self._r2.read_count)
+        time.sleep(1)
+
     def _set_sys_led(self) -> None:
+        """
+        Sets the system LED status based on the web service connection status.
+        """
         if self._ws_ready:
             self._sys_led.set_status("yellow", "on")
         else:
             self._sys_led.set_status("yellow", "blink_fast")
 
     def _init_threads(self) -> None:
+        """
+        Initializes all threads for the mode.
+        """
         if not self._is_thread_running("open_btns"):
             self._open_btns_check()
         if not self._is_thread_running("monitor_btns"):
@@ -52,13 +67,14 @@ class CloudMode(OfflineMode):
         """
         card_id = reader.read()
         if card_id:
+            plan_id = self._db_controller.get_card_tplan(card_id, reader.id)
+            action = self._tplan_controller.get_action(plan_id)
+            print(action)
             status = 701
-            # check if card has access - local db
-            if self._db_controller.check_card_access(card_id, reader.id, dt.now()):
-                self._open_door(door_unit)
-            # check if card has access - cloud
+            if self._db_controller.check_card_access(card_id, reader.id):
+                self._execute_action(action, door_unit)
             elif self._ws_controller.open_door_online(card_id, reader.id, dt.now()):
-                self._open_door(door_unit)
+                self._execute_action(action, door_unit)
                 self._update = True
             else:
                 status = 716
@@ -70,6 +86,9 @@ class CloudMode(OfflineMode):
             self._mqtt_card_read(card_id, reader.id)
 
     def _check_ws(self, time_period: int) -> None:
+        """
+        Starts a thread to periodically check the connection to the web service.
+        """
         t = threading.Thread(
             target=self._thread_check_ws,
             args=(time_period,),
@@ -91,10 +110,12 @@ class CloudMode(OfflineMode):
                 if ws_ready_old != self._ws_ready:
                     log(20, f"WS Ready: {self._ws_ready}")
                     ws_ready_old = self._ws_ready
-                print(f"WS Ready: {self._ws_ready}")
             time.sleep(1)
 
     def _update_db(self) -> None:
+        """
+        Starts a thread to periodically update the local database with data from the web service.
+        """
         t = threading.Thread(
             target=self._thread_update_db, daemon=True, name="update_db"
         )
@@ -102,6 +123,9 @@ class CloudMode(OfflineMode):
         t.start()
 
     def _thread_update_db(self) -> None:
+        """
+        Thread function to update the local database with data from the web service.
+        """
         while not self._stop_event.is_set():
             if self._update:
                 self._ws_controller.load_all_cards_from_ws()

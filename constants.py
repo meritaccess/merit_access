@@ -1,6 +1,7 @@
 import os
 import mysql.connector
 from getmac import get_mac_address
+from enum import Enum
 
 
 def get_syslog_server() -> str:
@@ -75,3 +76,23 @@ SYSLOG_PORT = 514
 
 # SYSTEM
 MAC = get_mac()
+
+
+# TIME PLANS
+class Action(Enum):
+    NONE = 0  # No time plan
+    SILENT_OPEN = 1  # Permanent open without sound
+    PULS = 2  # Gives pulse to open (default state)
+    REVERSE = 3  # Switches output
+
+
+# MODES
+class Mode(Enum):
+    CLOUD = 0
+    OFFLINE = 1
+
+
+class Config(Enum):
+    NONE = 0
+    CONFIG = 1
+    CONNECT = 2

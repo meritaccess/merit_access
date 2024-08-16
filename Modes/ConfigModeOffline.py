@@ -1,29 +1,32 @@
 import time
 from datetime import datetime as dt
 
-from HardwareComponents.Reader.ReaderWiegand import ReaderWiegand
-from Modes.ConfigModeCloud import ConfigModeCloud
+from HardwareComponents import ReaderWiegand
+from .ConfigModeCloud import ConfigModeCloud
 from Logger import log
+from constants import Config
 
 
 class ConfigModeOffline(ConfigModeCloud):
     """
-    Implements the operational logic for the system when in configuration mode. In this mode,
-    administrators can add or remove access permissions for cards directly through reader interactions or using the web interface.
+    Extends ConfigModeCloud to implement configuration logic specific to offline mode.
     """
 
     def __init__(self, *args, r1: ReaderWiegand, r2: ReaderWiegand, **kwargs):
         super().__init__(*args, **kwargs)
         self._r1 = r1
         self._r2 = r2
-        self._mode_name: str = "ConfigModeOffline"
-        self._sys_led.set_status("blue", "blink")
         self._easy_add: bool = bool(
             int(self._db_controller.get_val("ConfigDU", "easy_add"))
         )
         self._easy_remove: bool = bool(
             int(self._db_controller.get_val("ConfigDU", "easy_remove"))
         )
+
+    def _initial_setup(self) -> None:
+        self._mode_name: str = "ConfigModeOffline"
+        self._sys_led.set_status("blue", "blink")
+        log(20, self._mode_name)
 
     def _manage_cards(self, reader: ReaderWiegand) -> None:
         """
@@ -59,10 +62,9 @@ class ConfigModeOffline(ConfigModeCloud):
                         time.sleep(2)
                         self._sys_led.set_status("blue", "blink")
 
-    def run(self) -> int:
+    def run(self) -> Config:
         """The main loop of the mode."""
         try:
-            print("Mode: ", self)
             self._initial_setup()
             self._init_threads()
             self._wifi_setup()
@@ -71,12 +73,11 @@ class ConfigModeOffline(ConfigModeCloud):
             while not self._exit:
                 self._check_timeout()
                 if self._config_btn_is_pressed == 1:
-                    return 0
-                self.curr_time = time.perf_counter_ns()
+                    return Config.NONE
                 self._manage_cards(self._r1)
                 self._manage_cards(self._r2)
                 time.sleep(1)
-            return 0
+            return Config.NONE
         except Exception as e:
             log(40, str(e))
         finally:

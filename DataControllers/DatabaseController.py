@@ -1,6 +1,8 @@
 from datetime import datetime
 from typing import Tuple, Any, List
 import mysql.connector
+from mysql.connector import MySQLConnection
+from mysql.connector.cursor import MySQLCursor
 
 from Logger import log
 from constants import DB_HOST, DB_USER, DB_PASS, DB_NAME
@@ -23,7 +25,7 @@ class DatabaseController:
         self._db_pass = passwd
         self._db_name = name
 
-    def _connect(self) -> Tuple:
+    def _connect(self) -> Tuple[MySQLConnection, MySQLCursor]:
         """
         Establishes a connection to the database and returns both the connection and cursor objects.
         """
@@ -64,7 +66,7 @@ class DatabaseController:
 
     def set_val(self, table: str, prop: str, value: Any) -> bool:
         """
-        Sets a value in the specified table and property.
+        Sets a value in the specified table (running or ConfigDU) and property.
         """
         mydb, cur = self._connect()
         try:
@@ -102,7 +104,7 @@ class DatabaseController:
             cur.close()
             mydb.close()
 
-    def remove_access(self, card: str, reader: str) -> bool:
+    def remove_access(self, card: str, reader: int) -> bool:
         """
         Removes access permissions (the card is deleted from db) for a given card and reader.
         """
@@ -144,9 +146,7 @@ class DatabaseController:
             cur.close()
             mydb.close()
 
-    def check_card_access(
-        self, card: str, reader: str, time: datetime, state=10
-    ) -> bool:
+    def check_card_access(self, card: str, reader: int) -> bool:
         """
         Determines if a card has access permissions at a given reader and time.
         """
@@ -166,7 +166,7 @@ class DatabaseController:
             mydb.close()
 
     def insert_to_access(
-        self, card: str, reader: str, time: datetime, status: int = 700
+        self, card: str, reader: int, time: datetime, status: int = 700
     ) -> bool:
         """
         Inserts an access attempt into the database.
@@ -225,6 +225,39 @@ class DatabaseController:
         except Exception as e:
             log(40, f"Error activating temporary cards in database: {str(e)}")
             return False
+        finally:
+            cur.close()
+            mydb.close()
+
+    def get_tplans(self) -> Tuple:
+        """
+        Retrieves all time plans from the database.
+        """
+        mydb, cur = self._connect()
+        try:
+            cur.execute("SELECT * FROM `CasovePlany`")
+            return cur.fetchall()
+        except Exception as e:
+            log(40, f"Error getting time plan from database: {str(e)}")
+            return tuple()
+        finally:
+            cur.close()
+            mydb.close()
+
+    def get_card_tplan(self, card_id: str, reader_id: int) -> int:
+        """
+        Retrieves the time plan associated with a given card and reader from the database.
+        """
+        mydb, cur = self._connect()
+        try:
+            cur.execute(
+                """SELECT CasPlan FROM Karty WHERE Karta=%s AND Ctecka=%s""",
+                (card_id, reader_id),
+            )
+            return int(cur.fetchone()[0])
+        except Exception as e:
+            log(40, f"Error getting value from database: {str(e)}")
+            return 0
         finally:
             cur.close()
             mydb.close()

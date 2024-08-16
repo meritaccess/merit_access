@@ -1,4 +1,5 @@
 import subprocess
+from typing import List
 
 from Logger import log
 
@@ -46,6 +47,13 @@ class WifiController:
         try:
             if not self.check_wifi_status():
                 self._wifi_on()
+            ssid_list = self._get_available_wifi()
+            if not self._wifi_ssid in ssid_list:
+                log(
+                    30,
+                    f"WiFi {self._wifi_ssid} not found. Available networks: {', '.join(ssid_list)}",
+                )
+                return
             if not self.check_connection():
                 subprocess.run(
                     [
@@ -59,19 +67,43 @@ class WifiController:
                         self._wifi_pass,
                     ],
                     check=True,
+                    capture_output=True,
+                    text=True,
                 )
             if self.check_connection():
                 text = f"Connected to WiFi {self._wifi_ssid}."
-                print(text)
                 log(20, text)
             else:
-                print(f"Failed to connect to WiFi {self._wifi_ssid}.")
+                log(
+                    30,
+                    f"Failed to connect to WiFi {self._wifi_ssid}, possibly wrong password.",
+                )
         except subprocess.CalledProcessError as e:
             err = f"Error connecting to WiFi {self._wifi_ssid}: {e.stderr.strip()}"
             log(40, err)
         except Exception as e:
             err = f"Unexpected error: {e}"
             log(40, err)
+
+    def _get_available_wifi(self) -> List[str]:
+        try:
+            result = subprocess.run(
+                ["nmcli", "-f", "SSID", "device", "wifi", "list"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            if not result:
+                return []
+            return [ssid.strip() for ssid in result.stdout.strip().splitlines()[1::]]
+        except subprocess.CalledProcessError as e:
+            err = f"Error getting available WiFi networks: {e.stderr.strip()}"
+            log(40, err)
+            return []
+        except Exception as e:
+            err = f"Unexpected error: {e}"
+            log(40, err)
+            return []
 
     def wifi_disconnect(self) -> None:
         try:
@@ -81,7 +113,6 @@ class WifiController:
                 )
             if not self.check_connection():
                 text = f"Disconnected from WiFi {self._wifi_ssid}."
-                print(text)
                 log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Error disconnecting from WiFi {self._wifi_ssid}: {e.stderr.strip()}"
@@ -92,11 +123,8 @@ class WifiController:
 
     def ap_on(self) -> None:
         """
-        sudo nmcli connection modify Hotspot ipv4.method shared
-        sudo nmcli connection modify Hotspot ipv4.addresses 10.10.10.1/24
-        sudo nmcli connection up Hotspot
+        Turns on the WiFi access point with the provided SSID and password.
         """
-
         try:
             if not self.check_wifi_status():
                 self._wifi_on()
@@ -126,7 +154,6 @@ class WifiController:
             )
             subprocess.run(args + ["up", "Hotspot"], check=True)
             text = f"Access Point {self._ap_ssid} turned on."
-            print(text)
             log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Error turning on Access Point {self._ap_ssid}: {e.stderr.strip()}"
@@ -136,12 +163,14 @@ class WifiController:
             log(40, err)
 
     def ap_off(self) -> None:
+        """
+        Turns off the WiFi access point.
+        """
         try:
             subprocess.run(
                 ["sudo", "nmcli", "connection", "down", "Hotspot"], check=True
             )
             text = f"Access Point {self._ap_ssid} turned off."
-            print(text)
             log(20, text)
         except subprocess.CalledProcessError as e:
             err = f"Error turning off Access Point {self._ap_ssid}: {e.stderr.strip()}"
@@ -151,8 +180,13 @@ class WifiController:
             log(40, err)
 
     def check_connection(self) -> bool:
+        """
+        Checks if the WiFi interface is currently connected.
+        """
         try:
             result = self._get_devices()
+            if not result:
+                return False
             for line in result.stdout.splitlines():
                 device, state = line.split(":")
                 if device == self._interface:
@@ -168,8 +202,13 @@ class WifiController:
             return False
 
     def check_wifi_status(self) -> bool:
+        """
+        Checks if the WiFi interface is turned on.
+        """
         try:
             result = self._get_devices()
+            if not result:
+                return False
             for line in result.stdout.splitlines():
                 device, state = line.split(":")
                 if device == self._interface:
@@ -204,6 +243,9 @@ class WifiController:
             return ""
 
     def check_wifi_connection(self):
+        """
+        Checks if the WiFi interface is connected to any network.
+        """
         try:
             result = subprocess.run(
                 [
@@ -218,6 +260,8 @@ class WifiController:
                 capture_output=True,
                 text=True,
             )
+            if not result:
+                return False
             active_connections = result.stdout.strip().split("\n")
             for connection in active_connections:
                 parts = connection.strip().split(":")

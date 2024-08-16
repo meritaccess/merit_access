@@ -2,19 +2,13 @@ import threading
 import time
 from typing import Tuple, Dict
 import pigpio
+
 from constants import SYS_LED_BLUE, SYS_LED_GREEN, SYS_LED_RED
 
 
 class LedInfo:
     """
     Represents an LED's information and control logic, including color and style settings.
-
-    Attributes:
-        _r (int): GPIO pin for the red component.
-        _g (int): GPIO pin for the green component.
-        _b (int): GPIO pin for the blue component.
-        _style (str): Current style of the LED (off, on, blink, blink_fast).
-        _rgb (Tuple[int, int, int]): Current color of the LED in RGB format.
     """
 
     def __init__(
@@ -52,7 +46,6 @@ class LedInfo:
         self._run_style()
 
     def _init_hw(self) -> None:
-        """Initializes the GPIO pins for LED control."""
         self._pi.set_mode(self._r, pigpio.OUTPUT)
         self._pi.set_mode(self._g, pigpio.OUTPUT)
         self._pi.set_mode(self._b, pigpio.OUTPUT)
@@ -68,10 +61,6 @@ class LedInfo:
     def set_status(self, color, style: str) -> None:
         """
         Sets the LED's color and style.
-
-        Parameters:
-            color: The color to set (can be a hex string, hex int, RGB tuple, or color constant).
-            style (str): The style to apply (off, on, blink, blink_fast).
         """
         self._set_color(color)
         self._set_style(style)
@@ -79,10 +68,6 @@ class LedInfo:
     def _set_color(self, color) -> None:
         """
         Sets the LED's color.
-
-        Parameters:
-            color: The color to set. Supports hex string, hex int, RGB tuple, or color constant.
-            Color constants: red, green, blue, yellow, magenta, white, cyan.
         """
         if isinstance(color, str):
             if color in self.color_map.keys():

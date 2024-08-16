@@ -1,26 +1,28 @@
 import time
-from datetime import datetime as dt
 
-from Modes.ConfigModeABC import ConfigModeABC
-from GeneratorID.GeneratorID import GeneratorID
+from .ConfigModeABC import ConfigModeABC
+from GeneratorID import GeneratorID
 from Logger import log
+from constants import Config
 
 
 class ConfigModeConnect(ConfigModeABC):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._uid_generator: GeneratorID = GeneratorID()
+
+    def _initial_setup(self) -> None:
         self._mode_name: str = "ConfigModeConnect"
         self._sys_led.set_status("white", "blink_fast")
-        self._uid_generator: GeneratorID = GeneratorID()
+        log(20, self._mode_name)
 
     def _wifi_setup(self) -> None:
         pass
 
-    def run(self) -> int:
+    def run(self) -> Config:
         """The main loop of the mode."""
         try:
-            print("Mode: ", self)
             self._initial_setup()
             self._init_threads()
             time.sleep(1)
@@ -30,9 +32,9 @@ class ConfigModeConnect(ConfigModeABC):
                 uid = self._uid_generator.generate_uid()
                 print(uid)
                 if self._config_btn_is_pressed == 1:
-                    return 1
+                    return Config.CONFIG
                 time.sleep(1)
-            return 0
+            return Config.NONE
         except Exception as e:
             log(40, str(e))
         finally:

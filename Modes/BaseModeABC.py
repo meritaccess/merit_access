@@ -2,11 +2,10 @@ import time
 from abc import ABC, abstractmethod
 import threading
 from typing import List
+from constants import Config
 
-from HardwareComponents.LedInfo.LedInfo import LedInfo
-from HardwareComponents.Button.Button import Button
-from DataControllers.DatabaseController import DatabaseController
-from Network.WifiController import WifiController
+from HardwareComponents import LedInfo, Button
+from DataControllers import DatabaseController
 
 
 class BaseModeABC(ABC):
@@ -20,7 +19,6 @@ class BaseModeABC(ABC):
         sys_led: LedInfo,
         config_btn: Button,
         db_controller: DatabaseController,
-        wifi_controller: WifiController,
     ) -> None:
 
         self._mode_name: str = "BaseMode"
@@ -37,16 +35,24 @@ class BaseModeABC(ABC):
         self._sys_led = sys_led
         self._config_btn = config_btn
         self._db_controller = db_controller
-        self._wifi_controller = wifi_controller
 
     def exit(self) -> None:
+        """
+        Sets the exit flag to True, indicating that the mode should exit.
+        """
         self._exit = True
 
     def _init_threads(self) -> None:
+        """
+        Initializes all threads for the mode.
+        """
         if not self._is_thread_running("config_btn"):
             self._config_btn_check()
 
     def _config_btn_check(self):
+        """
+        Starts a new thread to monitor the configuration button state.
+        """
         t = threading.Thread(
             target=self._thread_config_btn, daemon=True, name="config_btn"
         )
@@ -54,6 +60,10 @@ class BaseModeABC(ABC):
         t.start()
 
     def _thread_config_btn(self) -> None:
+        """
+        Thread function that monitors the configuration button state and sets the button press state.
+        """
+
         while not self._stop_event.is_set():
             if self._config_btn.pressed():
                 press_time = time.time()
@@ -66,6 +76,9 @@ class BaseModeABC(ABC):
                     self._config_btn_is_pressed = 1
 
     def _stop(self) -> None:
+        """
+        Stops all running threads by setting the stop event and joining all threads.
+        """
         self._stop_event.set()
         for t in self._threads:
             t.join()
@@ -77,7 +90,12 @@ class BaseModeABC(ABC):
         return False
 
     @abstractmethod
-    def run(self) -> int:
+    def _initial_setup(self) -> None:
+        """Abstract method to setup the mode."""
+        pass
+
+    @abstractmethod
+    def run(self) -> Config:
         """Abstract method to run the mode."""
         pass
 

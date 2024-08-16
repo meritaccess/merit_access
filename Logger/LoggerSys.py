@@ -1,12 +1,17 @@
 import logging
 import logging.handlers
+from syslog_rfc5424_formatter import RFC5424Formatter
 import threading
 
 from constants import SYSLOG_SERVER, SYSLOG_PORT, MAC
 
 
 class CustomFormatter(logging.Formatter):
-    def __init__(self, fmt=None, datefmt=None, style="%", hostname=MAC):
+    """
+    Custom logging formatter that includes the hostname in log records.
+    """
+
+    def __init__(self, fmt=None, datefmt=None, style="%", hostname: str = MAC):
         super().__init__(fmt=fmt, datefmt=datefmt, style=style)
         self.hostname = hostname
 
@@ -16,10 +21,16 @@ class CustomFormatter(logging.Formatter):
 
 
 class LoggerSys:
+    """
+    Singleton class for logging messages to a syslog server.
+    """
+
     _instance = None
     _lock = threading.Lock()
 
-    def __new__(cls, server_ip=SYSLOG_SERVER, port=SYSLOG_PORT, *args, **kwargs):
+    def __new__(
+        cls, server_ip: str = SYSLOG_SERVER, port: int = SYSLOG_PORT, *args, **kwargs
+    ):
         if not cls._instance:
             with cls._lock:
                 if not cls._instance:
@@ -27,21 +38,21 @@ class LoggerSys:
                     cls._instance._initialize(server_ip, port)
         return cls._instance
 
-    def _initialize(self, server_ip, port):
+    def _initialize(self, server_ip: str, port: int) -> None:
+        """
+        Initializes the logger with syslog handler and custom formatter.
+        """
         self.logger = logging.getLogger("syslog_logger")
         self.logger.setLevel(logging.DEBUG)
         handler = logging.handlers.SysLogHandler(
             address=(server_ip, port),
             facility=logging.handlers.SysLogHandler.LOG_USER,
         )
-        formatter = CustomFormatter(
-            fmt="<%(levelno)s>%(asctime)s %(hostname)s %(name)s: %(message)s",
-            datefmt="%b %d %H:%M:%S",
-        )
+        formatter = RFC5424Formatter()
         handler.setFormatter(formatter)
         self.logger.addHandler(handler)
 
-    def get_logger(self):
+    def get_logger(self) -> logging.Logger:
         return self.logger
 
     def __str__(self) -> str:
@@ -51,5 +62,5 @@ class LoggerSys:
         return "LoggerSys"
 
 
-def get_sys_logger():
+def get_sys_logger() -> logging.Logger:
     return LoggerSys().get_logger()

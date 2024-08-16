@@ -4,3 +4,5 @@ netaddr==1.2.1
 zeep==4.2.1
 pigpio==1.78
 paho_mqtt==2.1.0
+psutil==6.0.0
+syslog-rfc5424-formatter==1.2.3

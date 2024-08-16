@@ -2,7 +2,9 @@ import threading
 import pigpio
 from typing import Optional
 from queue import Queue
+
 from constants import READER_PATH
+from Logger import log
 
 
 class ReaderWiegand:
@@ -28,15 +30,10 @@ class ReaderWiegand:
         self._device_path: str = device_path + str(self.id)
         self._data_queue = Queue()
         self.read_count = 0
-        self.read_err = 0
         self._init_hw()
         self._init_read()
 
     def _init_hw(self) -> None:
-        """
-        Initializes the hardware components, setting GPIO pin modes for input or output as appropriate and
-        configuring pull-up resistors for the data lines.
-        """
         self._pi.set_mode(self._beep, pigpio.OUTPUT)
         self._pi.set_mode(self._green_led, pigpio.OUTPUT)
         self._pi.set_mode(self._red_led, pigpio.OUTPUT)
@@ -68,7 +65,7 @@ class ReaderWiegand:
                     if data:
                         self._data_queue.put(data)
         except IOError as e:
-            print("Error accessing device:", e)
+            log(40, f"Error accessing device: {e}")
 
     def _check_pwm_range(self, intensity: int) -> int:
         """

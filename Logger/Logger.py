@@ -5,12 +5,18 @@ import logging
 from logging.handlers import RotatingFileHandler
 from typing import Tuple
 import mysql.connector
+from mysql.connector import MySQLConnection
+from mysql.connector.cursor import MySQLCursor
 
 from constants import LOG_DIR, LOG_FILE_SIZE, APP_PATH
 from constants import DB_HOST, DB_NAME, DB_PASS, DB_USER
 
 
 class DatabaseHandler(logging.Handler):
+    """
+    Custom logging handler that writes log messages to a database.
+    """
+
     def __init__(
         self,
         host: str = DB_HOST,
@@ -24,7 +30,7 @@ class DatabaseHandler(logging.Handler):
         self._db_pass = passwd
         self._db_name = name
 
-    def _connect(self) -> Tuple:
+    def _connect(self) -> Tuple[MySQLConnection, MySQLCursor]:
         """
         Establishes a connection to the database and returns both the connection and cursor objects.
         """
@@ -63,7 +69,7 @@ class DatabaseHandler(logging.Handler):
 
 class Logger:
     """
-    Class for logging messages with varying severity levels to a rotating log file system.
+    Singleton class for logging messages with varying severity levels to a rotating log file system.
     """
 
     _instance = None
@@ -89,7 +95,10 @@ class Logger:
         self._min_severity: int = min_severity
         self._logger = self._init_logger()
 
-    def _init_logger(self):
+    def _init_logger(self) -> logging.Logger:
+        """
+        Sets up the logger with stream, file, and database handlers.
+        """
         self._check_dir()
         logger = logging.getLogger("custom_logger")
         logger.setLevel(self._min_severity)
@@ -126,6 +135,9 @@ class Logger:
             return False
 
     def _check_dir(self) -> None:
+        """
+        Checks if the log directory exists, and creates it if it doesn't.
+        """
         if not os.path.exists(self._log_dir):
             os.mkdir(self._log_dir)
 

@@ -6,6 +6,10 @@ from Logger import log
 
 
 class MQTTController:
+    """
+    Handles MQTT operations: connecting to the broker, publishing messages, and subscribing to topics.
+    """
+
     def __init__(
         self,
         broker: str,
@@ -20,7 +24,7 @@ class MQTTController:
         self._topic_pub = topic_pub
         self._client: mqtt.Client = mqtt.Client(protocol=mqtt.MQTTv311)
         self._msg_queue: Queue = Queue()
-        self._keep_alive = keep_alive
+        self._keep_alive = keep_alive  # in seconds
         self._callbacks()
         self._log_connect_timeout = 180
         self._last_update = time.time()
@@ -48,6 +52,9 @@ class MQTTController:
                 log(40, err)
 
     def _on_connect(self, client, userdata, flags, rc) -> None:
+        """
+        Callback for when the client receives a CONNACK response from the server.
+        """
         print(f"Connected with result code {rc}")
         if rc == 0:
             self._client.subscribe(self._topic_sub)
@@ -56,9 +63,15 @@ class MQTTController:
             print(f"Failed to connect with result code {rc}")
 
     def _on_message(self, client, userdata, msg) -> None:
+        """
+        Callback for when a PUBLISH message is received from the server.
+        """
         self._msg_queue.put(msg.payload.decode())
 
     def _on_disconnect(self, client, userdata, rc) -> None:
+        """
+        Callback for when the client disconnects from the server.
+        """
         print(f"Disconnected with result code {rc}")
         if rc != 0:
             print("Unexpected disconnection. Attempting to reconnect.")
@@ -69,6 +82,9 @@ class MQTTController:
                 log(40, err)
 
     def _on_publish(self, client, userdata, mid) -> None:
+        """
+        Callback for when a message that was to be sent using the PUBLISH method has completed transmission.
+        """
         print(f"Message {mid} has been published.")
 
     def publish(self, message) -> None:
