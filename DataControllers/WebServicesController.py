@@ -3,23 +3,20 @@ from zeep import Client
 from zeep.transports import Transport
 import xml.etree.ElementTree as ET
 from datetime import datetime
-import time
 
-from .DatabaseController import DatabaseController
+from .WsControllerABC import WsControllerABC
 from constants import MAC
 from Logger import log
 
 
-class WebServicesController:
+class WebServicesController(WsControllerABC):
     """
     Manages interactions with external web services for operations related to access control.
     """
 
-    def __init__(self, db_controller: DatabaseController) -> None:
-        self.loading: bool = False
-        self._db_controller: DatabaseController = db_controller
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
         self.ws_addr: str = self._db_controller.get_val("ConfigDU", "ws")
-        self.last_access = time.time()
 
     def _thread_load_all_cards_from_ws(self) -> None:
         """
@@ -29,40 +26,41 @@ class WebServicesController:
         print("Starting thread for import card...")
         try:
             client = Client(self.ws_addr)
-            result = client.service.GetAllCardsForTerminal(MAC)
-            print("New cards:")
-            print(result)
-            print()
             self._update_last_access()
-            xml = ET.fromstring(result)
-            args = []
-            for child in xml.findall("card"):
-                mkarta = " ".join(child.get("Karta").split())
-                arg = (
-                    mkarta,
-                    child.get("Ctecka"),
-                    child.get("CasPlan"),
-                    child.get("Povoleni"),
-                    child.get("Smazano"),
-                    child.get("Pozn"),
-                )
-                args.append(arg)
-            self._db_controller.update_temp_cards(args)
+            cards = self._get_cards(client)
+            self._update_db(cards)
         except Exception as e:
             log(40, str(e))
-        finally:
-            print("Loading done")
-
-        try:
-            print("Setting tempKarty to active...")
-            self._db_controller.activate_temp_cards()
-            return True
-        except Exception as e:
-            log(40, str(e))
-            return False
         finally:
             self.loading = False
             print("Finished thread for import card...")
+
+    def _get_cards(self, client: Client) -> list:
+        """Fetches the list of valid cards from the web service."""
+        result = client.service.GetAllCardsForTerminal(MAC)
+        cards = []
+        if result:
+            xml = ET.fromstring(result)
+            for child in xml.findall("card"):
+                arg = (
+                    child.get("Karta").strip(),
+                    child.get("Ctecka").strip(),
+                    child.get("CasPlan").strip(),
+                    child.get("Povoleni").strip(),
+                    child.get("Smazano").strip(),
+                    child.get("Pozn").strip(),
+                )
+                cards.append(arg)
+        return cards
+
+    def _format_time_str(self, mytime: datetime) -> str:
+        # 2024-01-22 20:25:10.133
+        return mytime.strftime("%Y-%m-%d %H:%M:%S") + ".000"
+
+    def _select_terminal(self, reader: int) -> str:
+        if reader == 1:
+            return "MDA" + MAC[3:]
+        return "MDB" + MAC[3:]
 
     def load_all_cards_from_ws(self) -> None:
         """
@@ -77,7 +75,7 @@ class WebServicesController:
             )
             t.start()
 
-    def open_door_online(self, card: str, reader: str, time: datetime) -> bool:
+    def open_door_online(self, card: str, reader: str) -> bool:
         """
         Validates online if a specific card has access rights at the given time.
         """
@@ -85,15 +83,9 @@ class WebServicesController:
         try:
             client = Client(self.ws_addr)
             self._update_last_access()
-            mytime = (
-                time.strftime("%Y-%m-%d %H:%M:%S") + ".000"
-            )  # 2024-01-22 20:25:10.133
-            if reader == 1:
-                myterm = "MDA" + MAC[3:]
-            else:
-                myterm = "MDB" + MAC[3:]
-            mcard = " ".join(card.split())
-            result = client.service.OpenDoorOnline(myterm, mcard, reader, mytime)
+            mytime = self._format_time_str(datetime.now())
+            terminal = self._select_terminal(reader)
+            result = client.service.OpenDoorOnline(terminal, card, reader, mytime)
             print("Povolen vstup: ", result)
         except Exception as e:
             log(40, str(e))
@@ -104,47 +96,32 @@ class WebServicesController:
                 return True
             return False
 
-    def insert_to_access(
-        self, card: str, reader: str, time: datetime, status: int = 700
-    ) -> None:
-        """Logs an access attempt to the web service."""
+    def insert_to_access(self, card: str, reader: str, status: int = 700) -> None:
+        """Inserts an access record for the given card and reader into the web service."""
         print("Inserting to access online...")
         try:
             client = Client(self.ws_addr)
             self._update_last_access()
-            mytime = (
-                time.strftime("%Y-%m-%d %H:%M:%S") + ".000"
-            )  # 2024-01-22 20:25:10.133
-            if reader == 1:
-                myterm = "MDA" + MAC[3:]
-            else:
-                myterm = "MDB" + MAC[3:]
-            mcard = " ".join(card.split())
+            mytime = self._format_time_str(datetime.now())
+            terminal = self._select_terminal(reader)
             result = client.service.InsertToAccess(
-                myterm, mcard, reader, mytime, status
+                terminal, card, reader, mytime, status
             )
         except Exception as e:
             log(40, str(e))
-            pass
         finally:
-            print("Finished insert online...")
-
-    def _update_last_access(self) -> None:
-        self.last_access = time.time()
+            print(f"Finished insert online with return code: {result}")
 
     def check_connection(self) -> bool:
         """Checks if the web service is reachable."""
-        result = False
         try:
             transport = Transport(timeout=3)
             client = Client(self.ws_addr, transport=transport)
-            result = client.service.SQLReady()
-            if result:
+            if client:
                 self._update_last_access()
                 return True
             return False
-        except Exception as e:
-            log(40, str(e))
+        except Exception:
             return False
 
     def __str__(self) -> str:

@@ -3,7 +3,7 @@ from datetime import datetime as dt
 import threading
 
 from HardwareComponents import ReaderWiegand, DoorUnit
-from DataControllers import WebServicesController
+from DataControllers import WebServicesController, IvarController, WsControllerABC
 from .OfflineMode import OfflineMode
 from Logger import log
 
@@ -18,7 +18,7 @@ class CloudMode(OfflineMode):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self._update: bool = False
-        self._ws_controller = WebServicesController(db_controller=self._db_controller)
+        self._ws_controller = self._get_ws_controller()
         self._ws_ready: bool = self._ws_controller.check_connection()
         log(20, f"WS Ready: {self._ws_ready}")
         self._ws_controller.load_all_cards_from_ws()
@@ -34,6 +34,15 @@ class CloudMode(OfflineMode):
         self._db_controller.set_val("running", "R1ReadCount", self._r1.read_count)
         self._db_controller.set_val("running", "R2ReadCount", self._r2.read_count)
         time.sleep(1)
+
+    def _get_ws_controller(self) -> WsControllerABC:
+        """
+        Returns the web services controller for the mode.
+        """
+        enable_ivar = bool(int(self._db_controller.get_val("ConfigDU", "enable_ivar")))
+        if enable_ivar:
+            return IvarController(db_controller=self._db_controller)
+        return WebServicesController(db_controller=self._db_controller)
 
     def _set_sys_led(self) -> None:
         """
@@ -65,6 +74,7 @@ class CloudMode(OfflineMode):
         """
         Checks if a card has been read by the specified reader and grants access if appropriate.
         """
+        self._update = False
         card_id = reader.read()
         if card_id:
             plan_id = self._db_controller.get_card_tplan(card_id, reader.id)
@@ -73,13 +83,13 @@ class CloudMode(OfflineMode):
             status = 701
             if self._db_controller.check_card_access(card_id, reader.id):
                 self._execute_action(action, door_unit)
-            elif self._ws_controller.open_door_online(card_id, reader.id, dt.now()):
+            elif self._ws_controller.open_door_online(card_id, reader.id):
                 self._execute_action(action, door_unit)
                 self._update = True
             else:
                 status = 716
-            self._db_controller.insert_to_access(card_id, reader.id, dt.now(), status)
-            self._ws_controller.insert_to_access(card_id, reader.id, dt.now(), status)
+            self._db_controller.insert_to_access(card_id, reader.id, status)
+            self._ws_controller.insert_to_access(card_id, reader.id, status)
             self._db_controller.set_val(
                 "running", f"R{reader.id}ReadCount", reader.read_count
             )

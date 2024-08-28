@@ -87,7 +87,7 @@ class OfflineMode(BaseModeABC):
                 self._execute_action(action, door_unit)
             else:
                 status = 716
-            self._db_controller.insert_to_access(card_id, reader.id, dt.now(), status)
+            self._db_controller.insert_to_access(card_id, reader.id, status)
             self._db_controller.set_val(
                 "running", f"R{reader.id}ReadCount", reader.read_count
             )

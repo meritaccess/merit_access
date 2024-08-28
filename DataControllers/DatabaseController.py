@@ -165,9 +165,7 @@ class DatabaseController:
             cur.close()
             mydb.close()
 
-    def insert_to_access(
-        self, card: str, reader: int, time: datetime, status: int = 700
-    ) -> bool:
+    def insert_to_access(self, card: str, reader: int, status: int = 700) -> bool:
         """
         Inserts an access attempt into the database.
         """
@@ -176,7 +174,7 @@ class DatabaseController:
             cur.execute(
                 "INSERT INTO Access (Adresa, Karta, Ctecka, Tlacitko, Kdy, StavZpracovani)"
                 "VALUES ('localhost', %s, %s, 0, %s, %s)",
-                (card, reader, time.strftime("%Y-%m-%d %H:%M:%S"), status),
+                (card, reader, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), status),
             )
             mydb.commit()
             return True
@@ -254,7 +252,11 @@ class DatabaseController:
                 """SELECT CasPlan FROM Karty WHERE Karta=%s AND Ctecka=%s""",
                 (card_id, reader_id),
             )
-            return int(cur.fetchone()[0])
+            result = cur.fetchone()
+            if result:
+                return int(result[0])
+            return 0
+
         except Exception as e:
             log(40, f"Error getting value from database: {str(e)}")
             return 0

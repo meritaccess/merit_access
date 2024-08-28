@@ -37,7 +37,7 @@ class ConfigModeOffline(ConfigModeCloud):
         card_id = reader.read()
         if card_id:
             # if card has access - remove it
-            if self._db_controller.check_card_access(card_id, reader.id, dt.now()):
+            if self._db_controller.check_card_access(card_id, reader.id):
                 if self._easy_remove:
                     success = self._db_controller.remove_access(card_id, reader.id)
                     if success:
