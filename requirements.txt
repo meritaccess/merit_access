@@ -4,5 +4,5 @@ netaddr==1.2.1
 zeep==4.2.1
 pigpio==1.78
 paho_mqtt==2.1.0
-psutil==6.0.0
-syslog-rfc5424-formatter==1.2.3
+/home/meritaccess/merit_access/pip_packages/psutil-6.0.0-cp39-abi3-linux_armv7l.whl
+/home/meritaccess/merit_access/pip_packages/syslog_rfc5424_formatter-1.2.3-py3-none-any.whl
