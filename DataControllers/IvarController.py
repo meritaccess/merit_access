@@ -74,7 +74,7 @@ class IvarController(WsControllerABC):
 
     def _format_status(self, status: int) -> int:
         """Converts a status code to the format expected by the web service."""
-        if status == 700:
+        if status == 701:
             return 1
         return 0
 
