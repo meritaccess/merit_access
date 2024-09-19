@@ -20,6 +20,9 @@ class ConfigModeConnect(ConfigModeABC):
     def _wifi_setup(self) -> None:
         pass
 
+    def _apache_setup(self) -> None:
+        pass
+
     def run(self) -> Config:
         """The main loop of the mode."""
         try:

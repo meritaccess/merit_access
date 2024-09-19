@@ -19,6 +19,9 @@ class ConfigModeABC(BaseModeABC):
     def _wifi_setup(self) -> None:
         self._wifi_controller.ap_on()
 
+    def _ssh_setup(self) -> None:
+        self._ssh_controller.start()
+
     def _check_timeout(self) -> None:
         """
         Checks if the configuration mode has exceeded the maximum runtime and exits if it has.

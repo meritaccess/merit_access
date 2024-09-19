@@ -3,6 +3,7 @@ from zeep import Client
 from zeep.transports import Transport
 import xml.etree.ElementTree as ET
 from datetime import datetime
+from typing import List
 
 from .WsControllerABC import WsControllerABC
 from Logger import log
@@ -11,26 +12,29 @@ from Logger import log
 class IvarController(WsControllerABC):
     """Handles communication with the IVAR web service."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args, address_r1: str, address_r2: str, **kwargs) -> None:
         super().__init__(*args, **kwargs)
-        self.ws_addr: str = self._db_controller.get_val("ConfigDU", "ivar_server")
-        self._address_r1: str = self._db_controller.get_val(
-            "ConfigDU", "ivar_term_name1"
-        )
-        self._address_r2: str = self._db_controller.get_val(
-            "ConfigDU", "ivar_term_name2"
-        )
+        self._address_r1 = address_r1
+        self._address_r2 = address_r2
 
-    def _select_address(self, reader: int) -> str:
-        if reader == 1:
-            return self._address_r1
-        return self._address_r2
+    def load_all_cards(self) -> List:
+        """
+        Initiates the process of loading all card information from the web service in a separate thread.
+        """
+        if not self.loading:
+            cards = []
+            self.loading = True
+            t = threading.Thread(
+                target=self._thread_load_all_cards_from_ws,
+                daemon=True,
+                name="load_all_cards_from_ws",
+                args=(cards,),
+            )
+            t.start()
+            t.join()
+            return cards
 
-    def _format_time_str(self, mytime: datetime) -> str:
-        # 2024-08-23T09:48:26.129
-        return mytime.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
-
-    def _thread_load_all_cards_from_ws(self) -> None:
+    def _thread_load_all_cards_from_ws(self, cards) -> None:
         """
         A threaded method to load all access card information from the web service
         and update the local database accordingly.
@@ -40,13 +44,27 @@ class IvarController(WsControllerABC):
             service = self._get_service()
             cards_r1 = self._get_cards(service, 1)
             cards_r2 = self._get_cards(service, 2)
-            cards = cards_r1 + cards_r2
-            self._update_db(cards)
+            cards.extend(cards_r1 + cards_r2)
         except Exception as e:
             log(40, str(e))
         finally:
             self.loading = False
             print("Finished thread for import card...")
+
+    def load_all_tplans(self) -> List:
+        return []
+
+    def _thread_load_all_tplans(self, tplans) -> None:
+        pass
+
+    def _select_address(self, reader: int) -> str:
+        if reader == 1:
+            return self._address_r1
+        return self._address_r2
+
+    def _format_time_str(self, mytime: datetime) -> str:
+        # 2024-08-23T09:48:26.129
+        return mytime.strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3]
 
     def _get_cards(self, service: Client, reader: int) -> list:
         """Fetches the list of valid cards from the web service for the specified reader."""
@@ -78,19 +96,6 @@ class IvarController(WsControllerABC):
             return 1
         return 0
 
-    def load_all_cards_from_ws(self) -> None:
-        """
-        Initiates the process of loading all card information from the web service in a separate thread.
-        """
-        if not self.loading:
-            self.loading = True
-            t = threading.Thread(
-                target=self._thread_load_all_cards_from_ws,
-                daemon=True,
-                name="load_all_cards_from_ws",
-            )
-            t.start()
-
     def open_door_online(self, card: str, reader: str) -> bool:
         """
         Validates online if a specific card has access rights at the given time.
@@ -112,11 +117,13 @@ class IvarController(WsControllerABC):
                 return True
             return False
 
-    def insert_to_access(self, card: str, reader: str, status: int = 700) -> None:
+    def insert_to_access(
+        self, card: str, reader: str, mytime: datetime, status: int = 700
+    ) -> None:
         """Inserts an access record for the given card and reader into the web service."""
         try:
             service = self._get_service()
-            mytime = self._format_time_str(datetime.now())
+            mytime = self._format_time_str(mytime)
             access = self._format_status(status)
             result = service.WriteRecord(
                 self._select_address(reader), card, reader, 0, mytime, access

@@ -99,6 +99,7 @@ AP_PASS = "meritmerit"
 LOG_DIR = "logs/"
 READER_PATH = "/dev/wie"
 APP_PATH = os.path.dirname(os.path.abspath(__file__))
+SSH_CONFIG = "/etc/ssh/sshd_config"
 
 # SETTINGS
 LOG_FILE_SIZE = 10

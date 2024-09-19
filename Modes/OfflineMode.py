@@ -2,6 +2,7 @@ import time
 from datetime import datetime as dt
 import threading
 from typing import Dict, Tuple
+from datetime import datetime
 
 from HardwareComponents import ReaderWiegand, DoorUnit, Button
 from .BaseModeABC import BaseModeABC
@@ -51,6 +52,21 @@ class OfflineMode(BaseModeABC):
         self._sys_action1: Action = Action.NONE
         self._sys_action2: Action = Action.NONE
 
+    def _apache_setup(self) -> None:
+        self._apache_controller.start()
+
+    def _ssh_setup(self) -> None:
+        enable_ssh_password = not bool(
+            int(self._db_controller.get_val("ConfigDU", "disable_ssh_password"))
+        )
+        disable_ssh = bool(int(self._db_controller.get_val("ConfigDU", "disable_ssh")))
+        self._ssh_controller.password_auth(enable_ssh_password)
+
+        if disable_ssh:
+            self._ssh_controller.stop()
+        else:
+            self._ssh_controller.start()
+
     def _open_door(self, door_unit: DoorUnit) -> None:
         if door_unit.openning:
             door_unit.extra_time = True
@@ -78,20 +94,22 @@ class OfflineMode(BaseModeABC):
         Checks if a card has been read by the specified reader and grants access if appropriate.
         """
         card_id = reader.read()
-        if card_id:
-            plan_id = self._db_controller.get_card_tplan(card_id, reader.id)
-            action = self._tplan_controller.get_action(plan_id)
-            print(action)
-            status = 701
-            if self._db_controller.check_card_access(card_id, reader.id):
-                self._execute_action(action, door_unit)
-            else:
-                status = 716
-            self._db_controller.insert_to_access(card_id, reader.id, status)
-            self._db_controller.set_val(
-                "running", f"R{reader.id}ReadCount", reader.read_count
-            )
-            self._mqtt_card_read(card_id, reader.id)
+        mytime = datetime.now()
+        if not card_id:
+            return
+        plan_id = self._db_controller.get_card_tplan(card_id, reader.id)
+        action = self._tplan_controller.get_action(plan_id)
+        print(action)
+        status = 701
+        if self._db_controller.check_card_access(card_id, reader.id):
+            self._execute_action(action, door_unit)
+        else:
+            status = 716
+        self._db_controller.insert_to_access(card_id, reader.id, mytime, status)
+        self._db_controller.set_val(
+            "running", f"R{reader.id}ReadCount", reader.read_count
+        )
+        self._mqtt_card_read(card_id, reader.id)
 
     def _silent_open(
         self, last_sys_action1: Action, last_sys_action2: Action
@@ -262,6 +280,8 @@ class OfflineMode(BaseModeABC):
         try:
             self._initial_setup()
             self._init_threads()
+            self._apache_setup()
+            self._ssh_setup()
             last_sys_action1 = Action.NONE
             last_sys_action2 = Action.NONE
             while not self._exit:

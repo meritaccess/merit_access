@@ -94,8 +94,6 @@ class DatabaseController:
                 cur.execute(insert_query, (prop, value))
 
             mydb.commit()
-            cur.close()
-            mydb.close()
             return True
         except Exception as e:
             log(40, f"Error setting value in database: {str(e)}")
@@ -115,8 +113,6 @@ class DatabaseController:
                 (card, reader),
             )
             mydb.commit()
-            cur.close()
-            mydb.close()
             return True
         except Exception as e:
             log(40, f"Error removing access from database: {str(e)}")
@@ -136,8 +132,6 @@ class DatabaseController:
                 args,
             )
             mydb.commit()
-            cur.close()
-            mydb.close()
             return True
         except Exception as e:
             log(40, f"Error granting access in database: {str(e)}")
@@ -165,7 +159,9 @@ class DatabaseController:
             cur.close()
             mydb.close()
 
-    def insert_to_access(self, card: str, reader: int, status: int = 700) -> bool:
+    def insert_to_access(
+        self, card: str, reader: int, mytime: datetime, status: int = 700
+    ) -> bool:
         """
         Inserts an access attempt into the database.
         """
@@ -174,7 +170,7 @@ class DatabaseController:
             cur.execute(
                 "INSERT INTO Access (Adresa, Karta, Ctecka, Tlacitko, Kdy, StavZpracovani)"
                 "VALUES ('localhost', %s, %s, 0, %s, %s)",
-                (card, reader, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), status),
+                (card, reader, mytime.strftime("%Y-%m-%d %H:%M:%S"), status),
             )
             mydb.commit()
             return True
@@ -199,8 +195,6 @@ class DatabaseController:
                     arg,
                 )
                 mydb.commit()
-            cur.close()
-            mydb.close()
             return True
         except Exception as e:
             log(40, f"Error updating temporary cards in database: {str(e)}")
@@ -260,6 +254,86 @@ class DatabaseController:
         except Exception as e:
             log(40, f"Error getting value from database: {str(e)}")
             return 0
+        finally:
+            cur.close()
+            mydb.close()
+
+    def filter_access_by_status(self, status) -> List:
+        mydb, cur = self._connect()
+        try:
+            cur.execute("""SELECT * FROM `Access` WHERE StavZpracovani=%s""", (status,))
+            result = cur.fetchall()
+            if result:
+                return result
+            return []
+        except Exception as e:
+            log(40, f"Error getting value from database: {str(e)}")
+            return []
+        finally:
+            cur.close()
+            mydb.close()
+
+    def change_status(self, new_status: int, id_access: int) -> None:
+        mydb, cur = self._connect()
+        try:
+            cur.execute(
+                """UPDATE `Access` SET StavZpracovani=%s WHERE Id_Access=%s""",
+                (new_status, id_access),
+            )
+            mydb.commit()
+        except Exception as e:
+            log(40, f"Error getting value from database: {str(e)}")
+        finally:
+            cur.close()
+            mydb.close()
+
+    def update_temp_tplans(self, args: List) -> bool:
+        """
+        Updates temporary tplans in the database with the provided arguments.
+        """
+        mydb, cur = self._connect()
+        try:
+            cur.execute("""DELETE FROM `tempCasovePlany`""")
+            mydb.commit()
+            for arg in args:
+                cur.execute(
+                    """INSERT INTO `tempCasovePlany` 
+                    (`Cislo`, `Nazev`, `Popis`, `RezimOtevirani`, 
+                    `Po_PrvniZacatek`, `Po_PrvniKonec`, `Po_DruhyZacatek`, `Po_DruhyKonec`,
+                    `Ut_PrvniZacatek`, `Ut_PrvniKonec`, `Ut_DruhyZacatek`, `Ut_DruhyKonec`,
+                    `St_PrvniZacatek`, `St_PrvniKonec`, `St_DruhyZacatek`, `St_DruhyKonec`,
+                    `Ct_PrvniZacatek`, `Ct_PrvniKonec`, `Ct_DruhyZacatek`, `Ct_DruhyKonec`,
+                    `Pa_PrvniZacatek`, `Pa_PrvniKonec`, `Pa_DruhyZacatek`, `Pa_DruhyKonec`,
+                    `So_PrvniZacatek`, `So_PrvniKonec`, `So_DruhyZacatek`, `So_DruhyKonec`,
+                    `Ne_PrvniZacatek`, `Ne_PrvniKonec`, `Ne_DruhyZacatek`, `Ne_DruhyKonec`,
+                    `Svatky_PrvniZacatek`, `Svatky_PrvniKonec`, `Svatky_DruhyZacatek`, `Svatky_DruhyKonec`) 
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s, %s, %s, %s, %s, %s, %s, %s, %s, 
+                    %s, %s,%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,%s,%s,%s,%s);""",
+                    arg,
+                )
+                mydb.commit()
+            return True
+        except Exception as e:
+            log(40, f"Error updating temporary time plans in database: {str(e)}")
+            return False
+        finally:
+            cur.close()
+            mydb.close()
+
+    def activate_temp_tplans(self) -> bool:
+        """
+        Activates temporary cards by calling a stored procedure designed for this purpose.
+        """
+        mydb, cur = self._connect()
+        try:
+            cur.callproc("ActivateTempCasovePlany")
+            mydb.commit()
+            cur.close()
+            mydb.close()
+            return True
+        except Exception as e:
+            log(40, f"Error activating temporary time plans in database: {str(e)}")
+            return False
         finally:
             cur.close()
             mydb.close()

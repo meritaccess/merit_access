@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import time
 from datetime import datetime
+from typing import List
 
 from Logger import log
 from .DatabaseController import DatabaseController
@@ -8,17 +9,17 @@ from .DatabaseController import DatabaseController
 
 class WsControllerABC(ABC):
 
-    def __init__(self, db_controller: DatabaseController) -> None:
+    def __init__(self, ws_address: str) -> None:
         self.loading: bool = False
-        self._db_controller: DatabaseController = db_controller
         self.last_access = time.time()
+        self.ws_addr = ws_address
 
     @abstractmethod
-    def _thread_load_all_cards_from_ws(self) -> None:
+    def _thread_load_all_cards_from_ws(self, cards) -> None:
         pass
 
     @abstractmethod
-    def load_all_cards_from_ws(self) -> None:
+    def load_all_cards(self) -> List:
         pass
 
     @abstractmethod
@@ -26,7 +27,9 @@ class WsControllerABC(ABC):
         pass
 
     @abstractmethod
-    def insert_to_access(self, card: str, reader: str, status: int = 700) -> None:
+    def insert_to_access(
+        self, card: str, reader: str, mytime: datetime, status: int = 700
+    ) -> None:
         pass
 
     @abstractmethod
@@ -37,17 +40,13 @@ class WsControllerABC(ABC):
     def _format_time_str(self, mytime: datetime) -> str:
         pass
 
+    @abstractmethod
+    def load_all_tplans(self) -> List:
+        pass
+
+    @abstractmethod
+    def _thread_load_all_tplans(self, tplans) -> None:
+        pass
+
     def _update_last_access(self) -> None:
         self.last_access = time.time()
-
-    def _update_db(self, cards) -> None:
-        try:
-            if cards:
-                print(f"New cards: \n{cards}\n")
-                self._db_controller.update_temp_cards(cards)
-                print("Loading done. Setting tempKarty to active...")
-                self._db_controller.activate_temp_cards()
-            else:
-                print("No new cards")
-        except Exception as e:
-            log(40, str(e))

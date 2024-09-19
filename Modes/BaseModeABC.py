@@ -6,6 +6,7 @@ from constants import Config
 
 from HardwareComponents import LedInfo, Button
 from DataControllers import DatabaseController
+from Network import SSHController, ApacheController
 
 
 class BaseModeABC(ABC):
@@ -19,6 +20,8 @@ class BaseModeABC(ABC):
         sys_led: LedInfo,
         config_btn: Button,
         db_controller: DatabaseController,
+        ssh_controller: SSHController,
+        apache_controller: ApacheController,
     ) -> None:
 
         self._mode_name: str = "BaseMode"
@@ -35,6 +38,8 @@ class BaseModeABC(ABC):
         self._sys_led = sys_led
         self._config_btn = config_btn
         self._db_controller = db_controller
+        self._ssh_controller = ssh_controller
+        self._apache_controller = apache_controller
 
     def exit(self) -> None:
         """
@@ -97,6 +102,16 @@ class BaseModeABC(ABC):
     @abstractmethod
     def run(self) -> Config:
         """Abstract method to run the mode."""
+        pass
+
+    @abstractmethod
+    def _apache_setup(self) -> None:
+        """Abstract method to set Apache server"""
+        pass
+
+    @abstractmethod
+    def _ssh_setup(self) -> None:
+        """Abstract method to set ssh"""
         pass
 
     def __str__(self) -> str:

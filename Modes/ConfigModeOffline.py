@@ -68,6 +68,8 @@ class ConfigModeOffline(ConfigModeCloud):
             self._initial_setup()
             self._init_threads()
             self._wifi_setup()
+            self._apache_setup()
+            self._ssh_setup()
             time.sleep(1)
 
             while not self._exit:

@@ -13,7 +13,7 @@ from HardwareComponents import LedInfo, ReaderWiegand, DoorUnit, Button
 from DataControllers import DatabaseController, MQTTController
 from Modes import OfflineMode, CloudMode
 from Modes import ConfigModeOffline, ConfigModeCloud, ConfigModeConnect
-from Network import WifiController, NetworkController
+from Network import WifiController, NetworkController, SSHController, ApacheController
 from HealthCheck import HealthCheck
 from Logger import log
 
@@ -34,6 +34,8 @@ class MeritAccessApp:
         self._network_controller: NetworkController = NetworkController()
         self._network_settings()
         self._mqtt_controller: MQTTController = self._get_mqtt_controller()
+        self._ssh_controller: SSHController = SSHController()
+        self._apache_controller: ApacheController = ApacheController()
 
         # hardware objects
         self._sys_led: LedInfo = LedInfo(pi=self._pi)
@@ -270,7 +272,13 @@ class MeritAccessApp:
         # select and run different modes
         self._initial_setup()
         try:
-            args_base = [self._sys_led, self._config_btn, self._db_controller]
+            args_base = [
+                self._sys_led,
+                self._config_btn,
+                self._db_controller,
+                self._ssh_controller,
+                self._apache_controller,
+            ]
             args_main_mode = {
                 "r1": self._r1,
                 "r2": self._r2,
