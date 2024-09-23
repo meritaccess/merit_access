@@ -66,11 +66,13 @@ class CloudMode(OfflineMode):
         print("Loading done. Setting tempKarty to active...")
         self._db_controller.activate_temp_cards()
         print()
-        tplans = self._ws_controller.load_all_tplans()
-        print(f"New time plans: \n{tplans}\n")
-        self._db_controller.update_temp_tplans(tplans)
-        print("Loading done. Setting tempCasovePlany to active...")
-        self._db_controller.activate_temp_tplans()
+
+        if not isinstance(self._ws_controller, IvarController):
+            tplans = self._ws_controller.load_all_tplans()
+            print(f"New time plans: \n{tplans}\n")
+            self._db_controller.update_temp_tplans(tplans)
+            print("Loading done. Setting tempCasovePlany to active...")
+            self._db_controller.activate_temp_tplans()
 
     def _set_sys_led(self) -> None:
         """
