@@ -77,6 +77,7 @@ class MeritAccessApp:
             int(self._db_controller.get_val("ConfigDU", "mode"))
         )
         self._config_mode: Config = Config.NONE
+        self._in_config_mode = False
         self._runnig_mode = None
         self._pending_reboot = False
         self._exit = False
@@ -177,10 +178,7 @@ class MeritAccessApp:
                 time.sleep(1)
                 continue
             old_ip = self._db_controller.get_val("running", "MyIP")
-            if not self._config_mode == 0:
-                time.sleep(1)
-                continue
-            if current_ip != old_ip:
+            if not self._in_config_mode and current_ip != old_ip:
                 self._db_controller.set_val("running", "MyIP", current_ip)
             time.sleep(1)
 
@@ -306,6 +304,7 @@ class MeritAccessApp:
 
                 # ConfigMode
                 if self._config_mode == Config.CONFIG:
+                    self._in_config_mode = True
                     if self._main_mode == Mode.CLOUD:
                         self._runnig_mode = ConfigModeCloud(
                             *args_base, wifi_controller=self._wifi_controller
@@ -320,10 +319,13 @@ class MeritAccessApp:
                         )
                         self._config_mode = self._runnig_mode.run()
                 if self._config_mode == Config.CONNECT:
+                    self._in_config_mode = True
                     self._runnig_mode = ConfigModeConnect(
                         *args_base, wifi_controller=self._wifi_controller
                     )
                     self._config_mode = self._runnig_mode.run()
+
+                self._in_config_mode = False
 
         except KeyboardInterrupt:
             print("Ending by keyboard request")

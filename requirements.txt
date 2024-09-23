@@ -6,3 +6,4 @@ pigpio
 paho_mqtt
 psutil
 syslog-rfc5424-formatter
+PyMySQL
