@@ -46,7 +46,7 @@ class IvarController(WsControllerABC):
             cards_r2 = self._get_cards(service, 2)
             cards.extend(cards_r1 + cards_r2)
         except Exception as e:
-            log(40, str(e))
+            print(f"Error loading cards, probably no connection: {e}")
         finally:
             self.loading = False
             print("Finished thread for import card...")
@@ -96,40 +96,47 @@ class IvarController(WsControllerABC):
             return 1
         return 0
 
-    def open_door_online(self, card: str, reader: str) -> bool:
+    def open_door_online(self, card: str, reader: str) -> int:
         """
         Validates online if a specific card has access rights at the given time.
         """
         print("Testing rights for opening online...")
         try:
+            result = 2
             service = self._get_service()
             mytime = self._format_time_str(datetime.now())
             button = 0
             address = self._select_address(reader)
             result = service.CheckCardM(address, card, reader, button, mytime).Result
             print("Povolen vstup: ", result)
-        except Exception as e:
-            log(40, str(e))
-            result = -reader
-        finally:
             print("Finished rights for opening online...")
             if result == 0:
-                return True
-            return False
+                return 1
+            elif result == -1 or result == -2:
+                return 0
+            return 2
+        except Exception as e:
+            print(f"Error checking online access, probably no connection: {e}")
+            return 2
 
     def insert_to_access(
         self, card: str, reader: str, mytime: datetime, status: int = 700
     ) -> None:
         """Inserts an access record for the given card and reader into the web service."""
         try:
+            result = -1
             service = self._get_service()
             mytime = self._format_time_str(mytime)
             access = self._format_status(status)
             result = service.WriteRecord(
                 self._select_address(reader), card, reader, 0, mytime, access
             )
+            if result == 0:
+                return True
+            return False
         except Exception as e:
-            log(40, str(e))
+            print(f"Error inserting to access, probably no connection: {e}")
+            return False
         finally:
             print(f"Finished insert online with return code: {result}")
 

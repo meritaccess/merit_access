@@ -147,8 +147,7 @@ class WebServicesController(WsControllerABC):
                 return 0
             elif result == "1":
                 return 1
-            else:
-                return 2
+            return 2
         except Exception as e:
             print(f"Error checking online access, probably no connection: {e}")
             return 2

@@ -23,13 +23,13 @@ class WsControllerABC(ABC):
         pass
 
     @abstractmethod
-    def open_door_online(self, card: str, reader: str) -> bool:
+    def open_door_online(self, card: str, reader: str) -> int:
         pass
 
     @abstractmethod
     def insert_to_access(
         self, card: str, reader: str, mytime: datetime, status: int = 700
-    ) -> None:
+    ) -> bool:
         pass
 
     @abstractmethod
