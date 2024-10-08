@@ -130,3 +130,15 @@ class Config(Enum):
     NONE = 0
     CONFIG = 1
     CONNECT = 2
+
+
+class Status(Enum):
+    ALLOW = 701
+    ALLOW_TERM_NOT_FOUND = 702
+    ALLOW_CARD_NOT_FOUND = 703
+    ALLOW_INSERT_FAILED = 711
+
+    DENY = 716
+    DENY_TERM_NOT_FOUND = 717
+    DENY_CARD_NOT_FOUND = 718
+    DENY_INSERT_FAILED = 726

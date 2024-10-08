@@ -6,6 +6,7 @@ from datetime import datetime
 from typing import List
 
 from .WsControllerABC import WsControllerABC
+from constants import Status
 from Logger import log
 
 
@@ -92,17 +93,17 @@ class IvarController(WsControllerABC):
 
     def _format_status(self, status: int) -> int:
         """Converts a status code to the format expected by the web service."""
-        if status == 701:
+        if status == Status.ALLOW:
             return 1
         return 0
 
-    def open_door_online(self, card: str, reader: str) -> int:
+    def open_door_online(self, card: str, reader: str) -> Status:
         """
         Validates online if a specific card has access rights at the given time.
         """
         print("Testing rights for opening online...")
         try:
-            result = 2
+            result = -1000
             service = self._get_service()
             mytime = self._format_time_str(datetime.now())
             button = 0
@@ -111,32 +112,40 @@ class IvarController(WsControllerABC):
             print("Povolen vstup: ", result)
             print("Finished rights for opening online...")
             if result == 0:
-                return 1
-            elif result == -1 or result == -2:
-                return 0
-            return 2
+                return Status.ALLOW
+            elif result == -1:
+                return Status.DENY_TERM_NOT_FOUND
+            elif result == -2:
+                return Status.DENY_CARD_NOT_FOUND
+            return Status.DENY_INSERT_FAILED
         except Exception as e:
             print(f"Error checking online access, probably no connection: {e}")
-            return 2
+            return Status.DENY_INSERT_FAILED
 
     def insert_to_access(
-        self, card: str, reader: str, mytime: datetime, status: int = 700
-    ) -> None:
+        self, card: str, reader: str, mytime: datetime, status: Status
+    ) -> Status:
         """Inserts an access record for the given card and reader into the web service."""
         try:
-            result = -1
+            result = -1000
             service = self._get_service()
             mytime = self._format_time_str(mytime)
             access = self._format_status(status)
+            print(reader)
             result = service.WriteRecord(
                 self._select_address(reader), card, reader, 0, mytime, access
             )
             if result == 0:
-                return True
-            return False
+                return status
+            elif result == -1:
+                return Status(status.value + 1)
+            elif result == -2:
+                return Status(status.value + 2)
+            return Status(status.value + 10)
+
         except Exception as e:
             print(f"Error inserting to access, probably no connection: {e}")
-            return False
+            return Status(status.value + 10)
         finally:
             print(f"Finished insert online with return code: {result}")
 

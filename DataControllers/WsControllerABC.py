@@ -3,8 +3,7 @@ import time
 from datetime import datetime
 from typing import List
 
-from Logger import log
-from .DatabaseController import DatabaseController
+from constants import Status
 
 
 class WsControllerABC(ABC):
@@ -23,13 +22,13 @@ class WsControllerABC(ABC):
         pass
 
     @abstractmethod
-    def open_door_online(self, card: str, reader: str) -> int:
+    def open_door_online(self, card: str, reader: str) -> Status:
         pass
 
     @abstractmethod
     def insert_to_access(
         self, card: str, reader: str, mytime: datetime, status: int = 700
-    ) -> bool:
+    ) -> Status:
         pass
 
     @abstractmethod

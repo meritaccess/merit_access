@@ -5,7 +5,7 @@ from mysql.connector import MySQLConnection
 from mysql.connector.cursor import MySQLCursor
 
 from Logger import log
-from constants import DB_HOST, DB_USER, DB_PASS, DB_NAME
+from constants import DB_HOST, DB_USER, DB_PASS, DB_NAME, Status
 
 
 class DatabaseController:
@@ -140,7 +140,7 @@ class DatabaseController:
             cur.close()
             mydb.close()
 
-    def check_card_access(self, card: str, reader: int) -> bool:
+    def check_card_access(self, card: str, reader: int) -> Status:
         """
         Determines if a card has access permissions at a given reader and time.
         """
@@ -151,16 +151,18 @@ class DatabaseController:
                 (card, reader),
             )
             access_allowed = cur.fetchone()[0]
-            return access_allowed > 0
+            if access_allowed > 0:
+                return Status.ALLOW
+            return Status.DENY
         except Exception as e:
             log(40, f"Error checking card access in database: {str(e)}")
-            return False
+            return Status.DENY
         finally:
             cur.close()
             mydb.close()
 
     def insert_to_access(
-        self, card: str, reader: int, mytime: datetime, status: int = 700
+        self, card: str, reader: int, mytime: datetime, status: Status
     ) -> bool:
         """
         Inserts an access attempt into the database.
@@ -170,7 +172,7 @@ class DatabaseController:
             cur.execute(
                 "INSERT INTO Access (Adresa, Karta, Ctecka, Tlacitko, Kdy, StavZpracovani)"
                 "VALUES ('localhost', %s, %s, 0, %s, %s)",
-                (card, reader, mytime.strftime("%Y-%m-%d %H:%M:%S"), status),
+                (card, reader, mytime.strftime("%Y-%m-%d %H:%M:%S"), status.value),
             )
             mydb.commit()
             return True
@@ -246,9 +248,9 @@ class DatabaseController:
                 """SELECT CasPlan FROM Karty WHERE Karta=%s AND Ctecka=%s""",
                 (card_id, reader_id),
             )
-            result = cur.fetchone()
+            result = cur.fetchall()
             if result:
-                return int(result[0])
+                return int(result[0][0])
             return 0
 
         except Exception as e:
@@ -258,10 +260,12 @@ class DatabaseController:
             cur.close()
             mydb.close()
 
-    def filter_access_by_status(self, status) -> List:
+    def filter_access_by_status(self, status: Status) -> List:
         mydb, cur = self._connect()
         try:
-            cur.execute("""SELECT * FROM `Access` WHERE StavZpracovani=%s""", (status,))
+            cur.execute(
+                """SELECT * FROM `Access` WHERE StavZpracovani=%s""", (status.value,)
+            )
             result = cur.fetchall()
             if result:
                 return result
@@ -273,12 +277,12 @@ class DatabaseController:
             cur.close()
             mydb.close()
 
-    def change_status(self, new_status: int, id_access: int) -> None:
+    def change_status(self, new_status: Status, id_access: int) -> None:
         mydb, cur = self._connect()
         try:
             cur.execute(
                 """UPDATE `Access` SET StavZpracovani=%s WHERE Id_Access=%s""",
-                (new_status, id_access),
+                (new_status.value, id_access),
             )
             mydb.commit()
         except Exception as e:

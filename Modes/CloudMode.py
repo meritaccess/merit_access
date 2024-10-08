@@ -7,7 +7,7 @@ from HardwareComponents import ReaderWiegand, DoorUnit
 from DataControllers import WebServicesController, IvarController, WsControllerABC
 from .OfflineMode import OfflineMode
 from Logger import log
-from constants import MAC
+from constants import MAC, Status
 
 
 class CloudMode(OfflineMode):
@@ -112,31 +112,23 @@ class CloudMode(OfflineMode):
         """
         card_id = reader.read()
         mytime = datetime.now()
+
         if not card_id:
             return
         plan_id = self._db_controller.get_card_tplan(card_id, reader.id)
         action = self._tplan_controller.get_action(plan_id)
         print(action)
-        status = 701
-        success = False
-
-        if self._db_controller.check_card_access(card_id, reader.id):
+        status = self._db_controller.check_card_access(card_id, reader.id)
+        if status == Status.ALLOW:
             self._execute_action(action, door_unit)
-            success = self._ws_controller.insert_to_access(
+            status = self._ws_controller.insert_to_access(
                 card_id, reader.id, mytime, status
             )
-            if not success:
-                status += 10
         else:
-            access_online = self._ws_controller.open_door_online(card_id, reader.id)
-            if access_online == 0:
-                status = 716
-            elif access_online == 1:
+            status = self._ws_controller.open_door_online(card_id, reader.id)
+            if status == Status.ALLOW:
                 self._execute_action(action, door_unit)
                 self._update = True
-            else:
-                status = 726
-
         self._db_controller.insert_to_access(card_id, reader.id, mytime, status)
         self._db_controller.set_val(
             "running", f"R{reader.id}ReadCount", reader.read_count
@@ -229,13 +221,20 @@ class CloudMode(OfflineMode):
     def _thread_sync_access(self) -> None:
         while not self._stop_event.is_set():
             if self._ws_ready:
-                records_711 = self._db_controller.filter_access_by_status(711)
-                records_726 = self._db_controller.filter_access_by_status(726)
-                all_records = records_711 + records_726
+                failed_allow = self._db_controller.filter_access_by_status(
+                    Status.ALLOW_INSERT_FAILED
+                )
+                failed_deny = self._db_controller.filter_access_by_status(
+                    Status.DENY_INSERT_FAILED
+                )
+                all_records = failed_allow + failed_deny
                 for record in all_records:
-                    success = self._ws_controller.insert_to_access(
-                        record[2], record[3], record[5], record[6] - 10
+                    status = self._ws_controller.insert_to_access(
+                        record[2], record[3], record[5], Status(record[6] - 10)
                     )
-                    if success:
-                        self._db_controller.change_status(record[6] - 10, record[0])
+                    if (
+                        status != Status.ALLOW_INSERT_FAILED
+                        and status != Status.DENY_INSERT_FAILED
+                    ):
+                        self._db_controller.change_status(status, record[0])
             time.sleep(1)

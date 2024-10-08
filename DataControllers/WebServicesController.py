@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List
 
 from .WsControllerABC import WsControllerABC
-from constants import MAC
+from constants import MAC, Status
 
 
 class WebServicesController(WsControllerABC):
@@ -129,7 +129,7 @@ class WebServicesController(WsControllerABC):
         if action == "toggle":
             return 3
 
-    def open_door_online(self, card: str, reader: str) -> int:
+    def open_door_online(self, card: str, reader: str) -> Status:
         """
         Validates online if a specific card has access rights at the given time.
         """
@@ -144,17 +144,17 @@ class WebServicesController(WsControllerABC):
             print("Povolen vstup: ", result)
             print("Finished rights for opening online...")
             if result == "0":
-                return 0
+                return Status.DENY_CARD_NOT_FOUND
             elif result == "1":
-                return 1
-            return 2
+                return Status.ALLOW
+            return Status.DENY_INSERT_FAILED
         except Exception as e:
             print(f"Error checking online access, probably no connection: {e}")
-            return 2
+            return Status.DENY_INSERT_FAILED
 
     def insert_to_access(
-        self, card: str, reader: str, mytime: datetime, status: int = 700
-    ) -> bool:
+        self, card: str, reader: str, mytime: datetime, status: Status
+    ) -> Status:
         """Inserts an access record for the given card and reader into the web service."""
         print("Inserting to access online...")
         try:
@@ -164,14 +164,14 @@ class WebServicesController(WsControllerABC):
             mytime = self._format_time_str(mytime)
             terminal = self._select_terminal(reader)
             result = client.service.InsertToAccess(
-                terminal, card, reader, mytime, status
+                terminal, card, reader, mytime, status.value
             )
             if result == "OK":
-                return True
-            return False
+                return status
+            return Status(status.value + 10)
         except Exception as e:
             print(f"Error inserting to access, probably no connection: {e}")
-            return False
+            return Status(status.value + 10)
         finally:
             print(f"Finished insert online with return code: {result}")
 

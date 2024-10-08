@@ -5,6 +5,7 @@ from HardwareComponents import ReaderWiegand
 from .ConfigModeCloud import ConfigModeCloud
 from Logger import log
 from constants import Config
+from constants import Status
 
 
 class ConfigModeOffline(ConfigModeCloud):
@@ -35,32 +36,37 @@ class ConfigModeOffline(ConfigModeCloud):
         """
         # check if card has been read
         card_id = reader.read()
-        if card_id:
-            # if card has access - remove it
-            if self._db_controller.check_card_access(card_id, reader.id):
-                if self._easy_remove:
-                    success = self._db_controller.remove_access(card_id, reader.id)
-                    if success:
-                        self._sys_led.set_status("red", "on")
-                        time.sleep(2)
-                        self._sys_led.set_status("blue", "blink")
+        if not card_id:
+            return
+        status = self._db_controller.check_card_access(card_id, reader.id)
+        # if card has access - remove it
 
-            # if card not in the database - add it and grant access
-            else:
-                if self._easy_add:
-                    args = [
-                        card_id,
-                        reader.id,
-                        0,
-                        1,
-                        0,
-                        "Added in ConfigMode",
-                    ]
-                    success = self._db_controller.grant_access(args)
-                    if success:
-                        self._sys_led.set_status("green", "on")
-                        time.sleep(2)
-                        self._sys_led.set_status("blue", "blink")
+        if status == Status.ALLOW:
+            if not self._easy_remove:
+                return
+            success = self._db_controller.remove_access(card_id, reader.id)
+            if success:
+                self._sys_led.set_status("red", "on")
+                time.sleep(2)
+                self._sys_led.set_status("blue", "blink")
+
+        # if card not in the database - add it and grant access
+        else:
+            if not self._easy_add:
+                return
+            args = [
+                card_id,
+                reader.id,
+                0,
+                1,
+                0,
+                "Added in ConfigMode",
+            ]
+            success = self._db_controller.grant_access(args)
+            if success:
+                self._sys_led.set_status("green", "on")
+                time.sleep(2)
+                self._sys_led.set_status("blue", "blink")
 
     def run(self) -> Config:
         """The main loop of the mode."""

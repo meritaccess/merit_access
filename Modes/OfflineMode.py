@@ -10,7 +10,7 @@ from DataControllers import MQTTController
 from CommandParser import CommandParser
 from TimePlans import TimePlanController
 from Logger import log
-from constants import MAC, Action, Config
+from constants import MAC, Action, Config, Status
 
 
 class OfflineMode(BaseModeABC):
@@ -100,11 +100,9 @@ class OfflineMode(BaseModeABC):
         plan_id = self._db_controller.get_card_tplan(card_id, reader.id)
         action = self._tplan_controller.get_action(plan_id)
         print(action)
-        status = 701
-        if self._db_controller.check_card_access(card_id, reader.id):
+        status = self._db_controller.check_card_access(card_id, reader.id)
+        if status == Status.ALLOW:
             self._execute_action(action, door_unit)
-        else:
-            status = 716
         self._db_controller.insert_to_access(card_id, reader.id, mytime, status)
         self._db_controller.set_val(
             "running", f"R{reader.id}ReadCount", reader.read_count
