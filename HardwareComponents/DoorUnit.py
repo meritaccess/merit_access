@@ -25,7 +25,7 @@ class DoorUnit:
         self._pi.set_mode(self._relay, pigpio.OUTPUT)
         self._pi.write(self._relay, pigpio.LOW)
 
-    def open_door(self, open_time=20) -> None:
+    def open_door(self, open_time=3) -> None:
         t = threading.Thread(
             target=self._thread_open_door,
             args=(open_time,),
