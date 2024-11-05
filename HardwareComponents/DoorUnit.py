@@ -25,7 +25,7 @@ class DoorUnit:
         self._pi.set_mode(self._relay, pigpio.OUTPUT)
         self._pi.write(self._relay, pigpio.LOW)
 
-    def open_door(self, open_time=3) -> None:
+    def open_door(self, open_time=20) -> None:
         t = threading.Thread(
             target=self._thread_open_door,
             args=(open_time,),
@@ -64,9 +64,9 @@ class DoorUnit:
                 time.sleep(open_time)
             if not self.permanent_open:
                 self._pi.write(self._relay, pigpio.LOW)
-                self._reader.beep_off()
                 self._reader.led_off("green")
-                self.openning = False
+            self._reader.beep_off()
+            self.openning = False
 
     def __str__(self) -> str:
         return self.du_id
