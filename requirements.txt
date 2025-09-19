@@ -1,9 +1,13 @@
 getmac
 mysql-connector-python
 netaddr
+pytest
+pytest-mock
 zeep
 pigpio
 paho_mqtt
 psutil
 syslog-rfc5424-formatter
 PyMySQL
+pyserial
+libosdp
