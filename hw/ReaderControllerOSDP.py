@@ -13,6 +13,8 @@ from constants import (
     OSDP_MAX_READERS,
     OSDP_PORT,
     OSDP_INIT_TIME,
+    OSDP_READ_SLEEP_TIME,
+    Status,
 )
 from logger.Logger import log
 
@@ -226,7 +228,7 @@ class ReaderControllerOSDP:
         Thread to read from the OSDP readers.
         """
         while not self._thread_manager.stop_event():
-            event = self._cp.get_event(reader.address)
+            event = self._cp.get_event(reader.address, timeout=0)
             if event:
                 # card event
                 if event["event"] == 1:
@@ -237,6 +239,9 @@ class ReaderControllerOSDP:
                 elif event["event"] == 4:
                     reader.tamper = not reader.tamper
                     log(30, f"Reader {reader.id} Tamper Active: {reader.tamper}")
+            else:
+                sts = self._cp.status()
+            time.sleep(OSDP_READ_SLEEP_TIME)
 
     def _card_id_from_bytes(self, data: bytes) -> str:
         """

@@ -212,6 +212,7 @@ class Protocol(Enum):
 OSDP_ADDRESSES = 128  # osdp address range 0-127
 OSDP_MAX_READERS = 4  # two with relay outputs and two with gpio outputs
 OSDP_BATCH_SIZE = 4  # max supported number of osdp reader for one control panel
+OSDP_READ_SLEEP_TIME = 0.05 # time between osdp read cycles
 OSDP_PORT = "/dev/ttyAMA1"
 
 
