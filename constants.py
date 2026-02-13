@@ -1,9 +1,11 @@
+import logging
 import os
+from enum import Enum
+from typing import Literal
+
 import mysql.connector
 from getmac import get_mac_address
-from enum import Enum
-import logging
-from typing import Literal
+from osdp import LogLevel
 
 
 def get_syslog_server() -> str:
@@ -32,7 +34,7 @@ def get_syslog_server() -> str:
 
 def get_swap_wie() -> bool:
     """
-    Returns a boolean to determine whether open and monitor pins are swaped with reader pins
+    Returns a boolean to determine whether open and monitor pins are swapped with reader pins
     """
     try:
         mydb = mysql.connector.connect(
@@ -80,6 +82,36 @@ def get_log_level() -> Literal[0, 10, 20, 30, 40, 50]:
     except Exception as e:
         print(e)
         return logging.INFO
+
+
+OSDP_LOG_LEVEL_MAP = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "NOTICE": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRIT": logging.CRITICAL,
+    "ALERT": logging.CRITICAL,
+    "EMERG": logging.CRITICAL,
+}
+
+
+def get_osdp_log_level(log_level: int) -> LogLevel:
+    """
+    Maps the LOG_LEVEL constant to the corresponding OSDP LogLevel.
+    """
+    if log_level >= 50:
+        return LogLevel.Critical
+    elif log_level >= 40:
+        return LogLevel.Error
+    elif log_level >= 30:
+        return LogLevel.Warning
+    elif log_level >= 20:
+        return LogLevel.Info
+    elif log_level >= 10:
+        return LogLevel.Debug
+    else:
+        return LogLevel.Info
 
 
 def get_mac(interface: str = "eth0") -> str:
@@ -138,16 +170,18 @@ SSH_CONFIG = "/etc/ssh/sshd_config"
 
 # SETTINGS
 LOG_FILE_SIZE = 10
+SYNC_ACCESS_MAX_ATTEMPTS = 3
 
 # SYSLOGGER
 SYSLOG_SERVER = get_syslog_server()
 SYSLOG_PORT = 514
 LOG_LEVEL = get_log_level()
+OSDP_LOG_LEVEL = get_osdp_log_level(LOG_LEVEL)
 
 # SYSTEM
 MAC = get_mac()
 
-# TIME SLEEP
+# TIME SLEEP (seconds)
 MODE_SLEEP_TIME = 0.1  # do not go below 0.05s
 OSDP_INIT_TIME = 1  # do not go below 1s
 CARD_READ_TIME = 0.3
@@ -159,6 +193,7 @@ CONFIG_BTN_LONG_PRESS_TIME = 5  # shorter than this value is considered a short 
 WIE_READER_LED_TIME = 0.01
 SYS_LED_BLINK = 1
 SYS_LED_BLINK_FAST = 0.2
+SYNC_ACCESS_TIME = 3600  # time between access syncs of failed inserts with web service
 
 
 # TIME PLANS
@@ -188,18 +223,28 @@ class Status(Enum):
     ALLOW_CARD_NOT_FOUND = 703  # access allowed card not found
     ALLOW_DOOR_NOT_CLOSED = 704  # door not closed
     ALLOW_INSERT_FAILED = 711  # access allowed insert failed
+    # access allowed insert failed, do not retry insert
+    ALLOW_INSERT_FAILED_NO_RETRY = 712
     ALLOW_DOOR_NOT_CLOSED_INSERT_FAILED = 714  # door not closed insert failed
+    # access allowed door not closed insert failed, do not retry insert
+    ALLOW_DOOR_NOT_CLOSED_INSERT_FAILED_NO_RETRY = 715
 
     DENY = 716
     DENY_TERM_NOT_FOUND = 717  # access denied terminal not found
     DENY_CARD_NOT_FOUND = 718  # access denied card not found
     DENY_INSERT_FAILED = 726  # access denied insert failed
+    # access denied insert failed, do not retry insert
+    DENY_INSERT_FAILED_NO_RETRY = 727
 
     OPEN_WITH_BTN = 731  # opened with button
     OPEN_WITH_BTN_INSERT_FAILED = 741  # opened with button insert failed
+    # opened with button insert failed, do not retry insert
+    OPEN_WITH_BTN_INSERT_FAILED_NO_RETRY = 742
 
     UNAUTHORIZED_ACCESS = 751  # unauthorized access
     UNAUTHORIZED_ACCESS_INSERT_FAILED = 761  # unauthorized access insert failed
+    # unauthorized access insert failed, do not retry insert
+    UNAUTHORIZED_ACCESS_INSERT_FAILED_NO_RETRY = 762
 
 
 # PROTOCOLS
@@ -212,7 +257,7 @@ class Protocol(Enum):
 OSDP_ADDRESSES = 128  # osdp address range 0-127
 OSDP_MAX_READERS = 4  # two with relay outputs and two with gpio outputs
 OSDP_BATCH_SIZE = 4  # max supported number of osdp reader for one control panel
-OSDP_READ_SLEEP_TIME = 0.05 # time between osdp read cycles
+OSDP_READ_SLEEP_TIME = 0.05  # time between osdp read cycles
 OSDP_PORT = "/dev/ttyAMA1"
 
 

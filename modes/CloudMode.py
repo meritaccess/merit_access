@@ -3,12 +3,13 @@ from datetime import datetime, timedelta
 from random import randint
 from typing import List
 
-from controllers.WebServicesController import WebServicesController
+from constants import MAC, SYNC_ACCESS_MAX_ATTEMPTS, SYNC_ACCESS_TIME, Action, Status
 from controllers.IvarController import IvarController
+from controllers.WebServicesController import WebServicesController
 from controllers.WsControllerABC import WsControllerABC
-from .OfflineMode import OfflineMode
 from logger.Logger import log
-from constants import MAC, Status, Action
+
+from .OfflineMode import OfflineMode
 
 
 class CloudMode(OfflineMode):
@@ -23,6 +24,7 @@ class CloudMode(OfflineMode):
         self._update: bool = True
         self._ws_controller = self._get_ws_controller()
         self._ws_ready: bool = self._ws_controller.check_connection()
+        self._sync_access_retry_dict = {}
         log(20, f"WS Ready: {self._ws_ready}")
 
     def _initial_setup(self) -> None:
@@ -137,7 +139,7 @@ class CloudMode(OfflineMode):
             self._thread_check_sys_tplans, "sys_tplans"
         )
         success &= self._thread_manager.start_thread(
-            self._thread_check_ws, "check_ws", args=(1,)
+            self._thread_check_ws, "check_ws", args=(5,)
         )
         success &= self._thread_manager.start_thread(
             self._thread_update_db, "update_db"
@@ -181,7 +183,7 @@ class CloudMode(OfflineMode):
                 card_id, reader_id, mytime, status
             )
         else:
-            # open_door_online automaticaly logs access => do not manualy call insert to access
+            # open_door_online automatically logs access => do not manualy call insert to access
             status = self._ws_controller.open_door_online(card_id, reader_id)
             if status == Status.ALLOW:
                 self._execute_action(action, reader_id)
@@ -266,6 +268,28 @@ class CloudMode(OfflineMode):
         )
         return failed_allow + failed_deny + failed_unauth + failed_open_buttons
 
+    def _check_sync_attempt(self, record_id: int, status: Status) -> bool:
+        """
+        Checks if the number of sync attempts for a record has exceeded the maximum allowed attempts.
+        """
+        attempt = self._sync_access_retry_dict.get(record_id, 0)
+        log(
+            10,
+            f"Sync attempt {attempt} for record {record_id} with status {status.name}",
+        )
+        if attempt > SYNC_ACCESS_MAX_ATTEMPTS:
+            log(
+                10,
+                f"Max sync attempts reached for record {record_id}, skipping...",
+            )
+            self._db_controller.change_status(Status(status.value + 11), record_id)
+            self._sync_access_retry_dict.pop(record_id, None)
+            return False
+        self._sync_access_retry_dict[record_id] = (
+            self._sync_access_retry_dict.get(record_id, 0) + 1
+        )
+        return True
+
     def _thread_sync_access(self) -> None:
         """
         Thread function to periodically sync access records with the web service.
@@ -274,8 +298,15 @@ class CloudMode(OfflineMode):
             if self._ws_ready:
                 all_records = self._get_failed_statuses()
                 for record in all_records:
+                    record_id = record[0]
+                    card = record[2]
+                    reader = record[3]
+                    mytime = record[5]
+                    status = Status(record[6] - 10)
+                    if not self._check_sync_attempt(record_id, status):
+                        continue
                     status = self._ws_controller.insert_to_access(
-                        record[2], record[3], record[5], Status(record[6] - 10)
+                        card, reader, mytime, status
                     )
                     insert_failed = {
                         Status.ALLOW_INSERT_FAILED,
@@ -285,10 +316,9 @@ class CloudMode(OfflineMode):
                         Status.OPEN_WITH_BTN_INSERT_FAILED,
                     }
                     if status not in insert_failed:
-                        self._db_controller.change_status(status, record[0])
+                        self._db_controller.change_status(status, record_id)
                         log(
                             10,
-                            f"Access record updated: card: {record[2]} | reader: {record[3]} | time: {record[5]} | status: {status.name} ({status.value})",
+                            f"Access record updated: card: {card} | reader: {reader} | time: {mytime} | status: {status.name} ({status.value})",
                         )
-
-            time.sleep(1)
+            time.sleep(SYNC_ACCESS_TIME)

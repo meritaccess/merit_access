@@ -1,11 +1,12 @@
 from datetime import datetime
-from typing import Tuple, Any, List
+from typing import Any, List, Tuple
+
 import mysql.connector
 from mysql.connector import MySQLConnection
 from mysql.connector.cursor import MySQLCursor
 
+from constants import DB_HOST, DB_NAME, DB_PASS, DB_USER, Protocol, Status
 from logger.Logger import log
-from constants import DB_HOST, DB_USER, DB_PASS, DB_NAME, Status, Protocol
 
 
 class DatabaseController:
@@ -429,7 +430,25 @@ class DatabaseController:
         """
         mydb, cur = self._connect()
         try:
-            cur.execute("""SELECT * FROM Readers WHERE active=1;""")
+            cur.execute(
+                """
+                SELECT
+                    id,
+                    protocol,
+                    address,
+                    secure_key,
+                    active,
+                    output,
+                    pulse_time,
+                    sys_plan,
+                    monitor,
+                    monitor_default,
+                    max_open_time,
+                    has_monitor
+                FROM Readers
+                WHERE active = 1;
+                """
+            )
             rows = cur.fetchall()
             return rows
         except Exception as e:

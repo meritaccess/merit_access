@@ -1,10 +1,16 @@
 import serial
 from osdp import PDInfo, ControlPanel, LogLevel, Command
 from osdp import CommandLEDColor, Channel, KeyStore
+import osdp_sys
 import time
 from queue import Queue
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 import binascii
+import threading
+import os
+import re
+
+from constants import OSDP_LOG_LEVEL
 
 from controllers.ThreadManager import ThreadManager
 from constants import (
@@ -14,10 +20,9 @@ from constants import (
     OSDP_PORT,
     OSDP_INIT_TIME,
     OSDP_READ_SLEEP_TIME,
-    Status,
+    OSDP_LOG_LEVEL_MAP
 )
 from logger.Logger import log
-
 
 class SerialChannel(Channel):
     """
@@ -52,7 +57,65 @@ class SerialChannel(Channel):
         Clean up the SerialChannel instance.
         """
         self.dev.close()
+        
 
+class OsdpLogCapture:
+    """
+    Capture writes to a file descriptor (1=stdout, 2=stderr),
+    intercept only OSDP logs, and passthrough everything else.
+    """
+    def __init__(self, fd: int, on_line):
+        self.fd = fd
+        self.on_line = on_line
+        self._old_fd = None
+        self._r = None
+        self._w = None
+        self._t = None
+        self._stop = threading.Event()
+
+    def start(self):
+        self._old_fd = os.dup(self.fd)
+        self._r, self._w = os.pipe()
+        os.dup2(self._w, self.fd)
+
+        def reader():
+            buf = b""
+            while not self._stop.is_set():
+                try:
+                    chunk = os.read(self._r, 4096)
+                    if not chunk:
+                        break
+                    buf += chunk
+                    while b"\n" in buf:
+                        line, buf = buf.split(b"\n", 1)
+                        text = line.decode(errors="replace")
+
+                        if text.startswith("pyosdp") or text.startswith("OSDP:"):
+                            self.on_line(text)
+                        else:
+                            # passthrough non-OSDP output
+                            os.write(self._old_fd, line + b"\n")
+                except OSError:
+                    break
+
+        self._t = threading.Thread(target=reader, daemon=True)
+        self._t.start()
+
+    def stop(self):
+        self._stop.set()
+        try:
+            os.close(self._w)
+        except OSError:
+            pass
+        try:
+            os.dup2(self._old_fd, self.fd)
+            os.close(self._old_fd)
+        except OSError:
+            pass
+        try:
+            os.close(self._r)
+        except OSError:
+            pass
 
 class ReaderOSDP:
     """
@@ -68,7 +131,6 @@ class ReaderOSDP:
         self._scbk = scbk
         self.pd_info: PDInfo = PDInfo(self.address, self._serial_channel, scbk)
         self.tamper: bool = True
-
 
 class ReaderControllerOSDP:
     """
@@ -99,7 +161,40 @@ class ReaderControllerOSDP:
         self._q: Queue = Queue()
 
         self._thread_manager: ThreadManager = ThreadManager()
+        self._log_cap = OsdpLogCapture(2, self._on_line)
+        self._log_cap.start()
+        
+        self.LOG_RE = re.compile(
+            r"""
+            \[[^\]]+\]\s+                # timestamp [...]
+            \[(?P<level>[A-Z]+)\s*\]\s+   # level like [INFO ] or [DEBUG]
+            [^:]+:\d+:\s*                # source file:line:
+            (?P<message>.*)              # message
+            """,
+            re.VERBOSE,
+        )
 
+
+    def _on_line(self, line: str) -> None:
+        
+        def parse_osdp_log(line: str) -> Optional[Tuple[str, str]]:
+            m = self.LOG_RE.search(line)
+            if not m:
+                print("no match")
+                return None, None
+
+            level = m.group("level")
+            message = m.group("message")
+            return level, message
+        
+        try:
+            level, msg = parse_osdp_log(line)
+            if level and msg:
+                level = OSDP_LOG_LEVEL_MAP.get(level, 20)
+                log(level, f"OSDP: {msg}")
+        except Exception as e:
+            log(40, f"OSDP log parsing error: {e} : {line}")
+    
     def _wait_for_threads_to_finish(self) -> None:
         self._thread_manager.stop_all()
         # wait for all threads using cp to stop
@@ -131,7 +226,7 @@ class ReaderControllerOSDP:
                     PDInfo(address, self._serial_channel, scbk=None)
                     for address in range(i, i + OSDP_BATCH_SIZE)
                 ],
-                log_level=LogLevel.Emergency,
+                log_level=OSDP_LOG_LEVEL,
             )
             self._cp.start()
             # If this is lower than 1s readers do not have enough time to initialize and are not detected
@@ -167,7 +262,7 @@ class ReaderControllerOSDP:
                 )
                 for i in range(len(self.detected_addresses))
             ],
-            log_level=LogLevel.Info,
+            log_level=OSDP_LOG_LEVEL,
         )
         self._cp.start()
         self._cp.sc_wait_all()
@@ -193,7 +288,7 @@ class ReaderControllerOSDP:
         if not self.readers.values():
             return None
         return ControlPanel(
-            [r.pd_info for r in self.readers.values()], log_level=LogLevel.Info
+            [r.pd_info for r in self.readers.values()], log_level=OSDP_LOG_LEVEL
         )
 
     def _init_threads(self) -> None:
@@ -307,11 +402,13 @@ class ReaderControllerOSDP:
         Set the default LED and buzzer signal for the reader.
         """
         self.set_signal(reader_id, self.default_color, False)
+        
 
     def exit(self) -> None:
         """
         Clean up the OSDP controller.
         """
+        self._log_cap.stop()
         self._wait_for_threads_to_finish()
         if self._cp:
             self._cp.teardown()

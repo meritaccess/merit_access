@@ -115,7 +115,7 @@ class Logger:
         db_handler = DatabaseHandler()
         db_handler.setLevel(self._min_severity)
         formatter = logging.Formatter(
-            fmt="<%(levelno)s>%(asctime)s: %(message)s",
+            fmt="<%(levelno)s> %(asctime)s | %(module)s.%(funcName)s: %(message)s",
             datefmt="%b %d %H:%M:%S",
         )
         handler.setFormatter(formatter)
@@ -132,7 +132,7 @@ class Logger:
         """
         self._check_dir()
         try:
-            self._logger.log(severity, content)
+            self._logger.log(severity, content, stacklevel=3)
             return True
         except Exception as e:
             print(f"Can not write to {self._log_file} ", str(e))

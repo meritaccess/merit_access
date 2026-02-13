@@ -1,12 +1,14 @@
-from zeep import Client
-from zeep.transports import Transport
 import xml.etree.ElementTree as ET
 from datetime import datetime
 from typing import List, Tuple
 
-from .WsControllerABC import WsControllerABC
+from zeep import Client
+from zeep.transports import Transport
+
 from constants import Status
 from logger.Logger import log
+
+from .WsControllerABC import WsControllerABC
 
 
 class IvarController(WsControllerABC):
@@ -111,7 +113,7 @@ class IvarController(WsControllerABC):
         """
         Validates online if a specific card has access rights at the given time.
         """
-        print("Testing rights for opening online...")
+        log(10, "Testing rights for opening online...")
         try:
             result = -1000
             service = self._get_client().service
@@ -119,13 +121,21 @@ class IvarController(WsControllerABC):
             button = 0
             address = self._select_address(reader)
             result = service.CheckCardM(address, card, reader, button, mytime).Result
-            log(10, f"Povolen vstup: {result}")
             log(10, "Finished testing rights for opening online...")
             if result == 0:
+                log(10, f"Access granted | card: {card} reader: {reader}")
                 return Status.ALLOW
             elif result == -1:
+                log(
+                    10,
+                    f"Access denied | card: {card} reader: {reader}",
+                )
                 return Status.DENY_TERM_NOT_FOUND
             elif result == -2:
+                log(
+                    10,
+                    f"Access denied | card: {card} reader: {reader}",
+                )
                 return Status.DENY_CARD_NOT_FOUND
             return Status.DENY_INSERT_FAILED
         except Exception as e:
@@ -137,6 +147,14 @@ class IvarController(WsControllerABC):
     ) -> Status:
         """
         Inserts an access record for the given card and reader into the web service.
+
+        WriteRecord return values:
+
+        0: successfully inserted
+        -1: terminal not found
+        -2: card not found
+        -3: record already exists in the database
+        -4: record older than 40 days (such a record will not be saved)
         """
         try:
             result = -1000
@@ -146,10 +164,21 @@ class IvarController(WsControllerABC):
             result = service.WriteRecord(
                 self._select_address(reader), card, reader, 0, mytime, access
             )
-            if result == 0:
+            if result == 0 or result == -3:
                 return status
+            elif result == -4:
+                log(
+                    10,
+                    f"Record was not inserted - older than 40 days | card: {card} reader: {reader} time: {mytime}",
+                )
+                return Status(status.value + 11)
             elif result in {-1, -2} and status in {Status.ALLOW, Status.DENY}:
                 return Status(status.value + abs(result))
+
+            log(
+                10,
+                f"Record was not inserted | card: {card} reader: {reader} time: {mytime}",
+            )
             return Status(status.value + 10)
 
         except Exception as e:
