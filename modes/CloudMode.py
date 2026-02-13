@@ -294,8 +294,10 @@ class CloudMode(OfflineMode):
         """
         Thread function to periodically sync access records with the web service.
         """
+        last_sync = time.time()
         while not self._thread_manager.stop_event():
-            if self._ws_ready:
+            if self._ws_ready and time.time() - last_sync > SYNC_ACCESS_TIME:
+                last_sync = time.time()
                 all_records = self._get_failed_statuses()
                 for record in all_records:
                     record_id = record[0]
@@ -321,4 +323,4 @@ class CloudMode(OfflineMode):
                             10,
                             f"Access record updated: card: {card} | reader: {reader} | time: {mytime} | status: {status.name} ({status.value})",
                         )
-            time.sleep(SYNC_ACCESS_TIME)
+            time.sleep(1)
