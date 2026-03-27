@@ -20,9 +20,10 @@ from constants import (
     OSDP_PORT,
     OSDP_INIT_TIME,
     OSDP_READ_SLEEP_TIME,
-    OSDP_LOG_LEVEL_MAP
+    OSDP_LOG_LEVEL_MAP,
 )
 from logger.Logger import log
+
 
 class SerialChannel(Channel):
     """
@@ -31,6 +32,7 @@ class SerialChannel(Channel):
     """
 
     def __init__(self, device: str, speed: int) -> None:
+        self.id = abs(hash((device, speed))) & 0x7FFFFFFF
         self.dev = serial.Serial(device, speed, timeout=0)
 
     def read(self, max_read: int) -> bytes:
@@ -39,31 +41,39 @@ class SerialChannel(Channel):
         """
         return self.dev.read(max_read)
 
-    def write(self, data: bytes) -> int:
-        """
-        Sends the specified data to the serial device.
-        """
-        return self.dev.write(data)
+    def write(self, buf: bytes) -> int:
+        written = self.dev.write(buf)
+        return written if written == len(buf) else -1
 
     def flush(self) -> None:
         """
-        Flush the write buffer of the serial device.
-        Ensures that all data in the write buffer is sent to the device.
+        Clear buffered serial data so libosdp can restart packet parsing cleanly.
         """
-        self.dev.flush()
+        if not self.dev.is_open:
+            return
+
+        self.dev.reset_input_buffer()
+        self.dev.reset_output_buffer()
+
+    def close(self) -> None:
+        """
+        Close the underlying serial device.
+        """
+        if self.dev.is_open:
+            self.dev.close()
 
     def __del__(self) -> None:
         """
         Clean up the SerialChannel instance.
         """
-        self.dev.close()
-        
+        self.close()
 
 class OsdpLogCapture:
     """
     Capture writes to a file descriptor (1=stdout, 2=stderr),
     intercept only OSDP logs, and passthrough everything else.
     """
+
     def __init__(self, fd: int, on_line):
         self.fd = fd
         self.on_line = on_line
@@ -117,6 +127,7 @@ class OsdpLogCapture:
         except OSError:
             pass
 
+
 class ReaderOSDP:
     """
     Represents an OSDP reader.
@@ -132,6 +143,7 @@ class ReaderOSDP:
         self.pd_info: PDInfo = PDInfo(self.address, self._serial_channel, scbk)
         self.tamper: bool = True
 
+
 class ReaderControllerOSDP:
     """
     Controller for managing OSDP readers.
@@ -144,6 +156,7 @@ class ReaderControllerOSDP:
         self._baud_rate = baud_rate
         self._serial_channel: SerialChannel = SerialChannel(self._port, self._baud_rate)
         self._secure_channel = secure_channel
+        self._plaintext_fallback_addresses = set()
         self.detected_addresses: List = []
         self.readers: Dict = dict()
         self._cp: ControlPanel = None
@@ -161,22 +174,24 @@ class ReaderControllerOSDP:
         self._q: Queue = Queue()
 
         self._thread_manager: ThreadManager = ThreadManager()
-        self._log_cap = OsdpLogCapture(2, self._on_line)
-        self._log_cap.start()
-        
         self.LOG_RE = re.compile(
             r"""
-            \[[^\]]+\]\s+                # timestamp [...]
-            \[(?P<level>[A-Z]+)\s*\]\s+   # level like [INFO ] or [DEBUG]
-            [^:]+:\d+:\s*                # source file:line:
-            (?P<message>.*)              # message
+            (?:[^:]+:\s+)*              # prefix (např. OSDP: CP: PD-1:)
+            (?P<timestamp>\S+)          # timestamp 2026-03-27T11:58:10Z
+            \s+
+            (?P<source>\S+:\d+)         # source file:line (osdp_cp.c:924)
+            \s+
+            \[(?P<level>[A-Z]+)\s*\]    # level [INFO ] / [DEBUG] / [ERROR]
+            \s+
+            (?P<message>.*)             # message
             """,
             re.VERBOSE,
         )
-
+        self._log_cap = OsdpLogCapture(2, self._on_line)
+        self._log_cap.start()
 
     def _on_line(self, line: str) -> None:
-        
+
         def parse_osdp_log(line: str) -> Optional[Tuple[str, str]]:
             m = self.LOG_RE.search(line)
             if not m:
@@ -186,7 +201,7 @@ class ReaderControllerOSDP:
             level = m.group("level")
             message = m.group("message")
             return level, message
-        
+
         try:
             level, msg = parse_osdp_log(line)
             if level and msg:
@@ -194,7 +209,7 @@ class ReaderControllerOSDP:
                 log(level, f"OSDP: {msg}")
         except Exception as e:
             log(40, f"OSDP log parsing error: {e} : {line}")
-    
+
     def _wait_for_threads_to_finish(self) -> None:
         self._thread_manager.stop_all()
         # wait for all threads using cp to stop
@@ -276,10 +291,44 @@ class ReaderControllerOSDP:
         Set the active readers for the controller.
         """
         sc = self._serial_channel
+        self._plaintext_fallback_addresses.clear()
         self.readers = {
             r[0]: ReaderOSDP(r[0], r[2], sc, binascii.unhexlify(r[3]) if r[3] else None)
             for r in active_readers
         }
+
+    def _get_pd_info_list(self) -> List[PDInfo]:
+        """
+        Build PD info objects for active readers, downgrading failed readers to plaintext.
+        """
+        return [
+            PDInfo(
+                reader.address,
+                self._serial_channel,
+                scbk=None
+                if reader.address in self._plaintext_fallback_addresses
+                else reader._scbk,
+            )
+            for reader in self.readers.values()
+        ]
+
+    def _restart_cp_without_secure_channel(self, addresses: List[int]) -> None:
+        """
+        Restart the control panel in plaintext mode for readers that failed SC startup.
+        """
+        if not addresses:
+            return
+
+        self._plaintext_fallback_addresses.update(addresses)
+        log(30, f"OSDP secure channel failed, retrying without SC for addresses: {addresses}")
+
+        if self._cp:
+            self._cp.teardown()
+
+        self._cp = self.get_cp()
+        self._cp.start()
+        time.sleep(OSDP_INIT_TIME)
+        self._cp.online_wait_all()
 
     def get_cp(self) -> ControlPanel:
         """
@@ -287,9 +336,7 @@ class ReaderControllerOSDP:
         """
         if not self.readers.values():
             return None
-        return ControlPanel(
-            [r.pd_info for r in self.readers.values()], log_level=OSDP_LOG_LEVEL
-        )
+        return ControlPanel(self._get_pd_info_list(), log_level=OSDP_LOG_LEVEL)
 
     def _init_threads(self) -> None:
         """
@@ -300,7 +347,13 @@ class ReaderControllerOSDP:
             self._cp = self.get_cp()
             self._cp.start()
             time.sleep(OSDP_INIT_TIME)
-            self._cp.sc_wait_all()
+            if self._secure_channel and not self._cp.sc_wait_all():
+                failed_addresses = [
+                    reader.address
+                    for reader in self.readers.values()
+                    if not self._cp.is_online(reader.address)
+                ]
+                self._restart_cp_without_secure_channel(failed_addresses)
             for reader in self.readers.values():
                 self.set_default_signal(reader.id)
         success = True
@@ -402,7 +455,6 @@ class ReaderControllerOSDP:
         Set the default LED and buzzer signal for the reader.
         """
         self.set_signal(reader_id, self.default_color, False)
-        
 
     def exit(self) -> None:
         """
