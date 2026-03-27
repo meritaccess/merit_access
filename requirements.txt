@@ -10,4 +10,4 @@ psutil
 syslog-rfc5424-formatter
 PyMySQL
 pyserial
-libosdp
+libosdp==3.1.0
